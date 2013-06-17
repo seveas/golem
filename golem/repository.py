@@ -214,7 +214,7 @@ class Repository(IniConfig):
         else:
             raise GolemError("Don't know how to fetch the reflog")
 
-    def schedule(self, ref, commit):
+    def schedule(self, ref, old_commit, commit):
         refs = {}
         if ref and ref.startswith(('refs/heads', 'refs/tags')):
             refs[ref] = [commit]
@@ -250,7 +250,7 @@ class Repository(IniConfig):
                         if not self.actions[req[7:]].succes(ref, commit):
                             req_ok = False
                     if req_ok and not action.scheduled(ref, commit):
-                        action.schedule(ref, commit)
+                        action.schedule(ref, old_commit, commit)
 
     def git(self, *args, **kwargs):
         res = self.shell.git(*args, **kwargs)
@@ -294,10 +294,10 @@ class Action(IniConfig):
     def scheduled(self, ref, commit):
         return os.path.exists(os.path.join(self.artefact_path, '%s@%s' % (ref, commit)))
 
-    def schedule(self, ref, commit=''):
+    def schedule(self, ref, old_commit, commit):
         self.logger.info("Scheduling %s for %s@%s" % (self.name, ref, commit))
         self.daemon.bs.use(self.queue)
-        data = {'repo': self.repo_name, 'ref': ref, 'commit': commit, 'action': self.name}
+        data = {'repo': self.repo_name, 'ref': ref, 'old_commit': old_commit, 'commit': commit, 'action': self.name}
         data.update(self.config)
         self.daemon.bs.put(json.dumps(data), ttr=self.ttr)
         if commit:

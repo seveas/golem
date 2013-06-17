@@ -115,6 +115,6 @@ class Master(Daemon):
             else:
                 self.logger.info("Update found for repo %s" % job['repo'])
                 self.repos[job['repo']].update()
-                self.repos[job['repo']].schedule(job['ref'], job['new-sha1'])
+                self.repos[job['repo']].schedule(job['ref'], job['old-sha1'], job['new-sha1'])
         os.chdir('/')
         return True
