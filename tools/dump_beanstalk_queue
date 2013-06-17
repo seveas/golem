@@ -10,6 +10,8 @@ stats = '--stats' in sys.argv
 
 bs = beanstalkc.Connection('localhost', 11300)
 for queue in bs.tubes():
+    if not queue.startswith('golem-'):
+        continue
     print "Queue: %s" % queue
     bs.watch(queue)
     bs.use(queue)
