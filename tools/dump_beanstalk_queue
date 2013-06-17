@@ -1,0 +1,36 @@
+#!/usr/bin/python
+
+import beanstalkc
+import sys
+import json
+
+drop = '--drop' in sys.argv
+kick = '--kick' in sys.argv
+stats = '--stats' in sys.argv
+
+bs = beanstalkc.Connection('localhost', 11300)
+for queue in bs.tubes():
+    print "Queue: %s" % queue
+    bs.watch(queue)
+    bs.use(queue)
+    qstats = bs.stats_tube(queue)
+    if kick:
+        bs.kick(qstats['current-jobs-buried'])
+    for k,v in qstats.items():
+        if 'job' in k:
+            print '  %s: %s' % (k.title().replace('-', ' '), v)
+    while True:
+        job = bs.reserve(timeout=0)
+        if not job:
+            break
+        print "  Job: %d" % job.jid
+        data = json.loads(job.body)
+        for item in data:
+            print "    %s: %s" % (item, data[item])
+        if stats:
+            print "  Stats:"
+            for k,v in job.stats().items():
+                print "    %s: %s" % (k,v)
+
+        if drop:
+            job.delete()

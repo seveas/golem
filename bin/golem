@@ -1,0 +1,98 @@
+#!/usr/bin/python
+#
+# The main golem scheduler, it reads incoming updates from a beanstalk queue,
+# updates repositories and schedules jobs.
+
+import beanstalkc
+import docopt
+import ConfigParser
+import json
+import logging.config
+import golem.daemon
+import golem.repository
+import prctl
+import sys
+import functools
+import os
+from whelk import shell
+
+usage = """Golem queueing daemon
+
+Usage:
+  golem [-c|--config <config>] (--worker <worker> | --master) [--daemon]
+  golem [-c|--config <config>] --submit [<repo> [<ref> <old-sha1> <new-sha1>]]
+  golem [-c|--config <config>] --login <service>
+
+Options:
+  -h --help                 Show this help message and exit
+  -c=<file> --config=<file> Use a different configuration than the default
+  --daemon                  Run as a daemon in the background
+  --worker=<worker>         Run the specified worker instead of the master
+"""
+
+opts = docopt.docopt(usage)
+default_config = '/etc/golem/golem.conf'
+config = opts.get('--config', default_config)
+parser = ConfigParser.ConfigParser()
+parser.read(config)
+
+if opts['--login']:
+    if opts['<service>'] == 'github':
+        cf = os.path.join(os.path.expanduser('~'), '.githubconfig-golem')
+        if os.path.exists(cf):
+            os.unlink(cf)
+        golem.repository.github(try_login=True)
+    else:
+        print >>sys.stderr, "Unknown service: %s" % opts['<service>']
+        sys.sxit(1)
+    sys.exit(0)
+
+if opts['--submit']:
+    if not opts['<repo>']:
+        res = shell.git('rev-parse', '--git-dir')
+        if res.returncode == 0:
+            print res.stderr.rstrip()
+            sys.exit(res.returncode)
+        git_dir = os.path.abspath(res.stdout.strip())
+        if shell.git('rev-parse', '--is-bare-repository').stdout.strip() == 'false':
+            opts['<repo>'] = os.path.basename(os.path.dirname(git_dir))
+        else:
+            opts['<repo>'] = os.path.basename(git_dir)
+            if opts['<repo>'].endswith('.git'):
+                otps['<repo>'] = opts['<repo>'][:-4]
+    to_submit = []
+    if opts['<ref>'] or sys.stdin.isatty():
+        to_submit.append({'repo': opts['<repo>'], 'ref': opts['<ref>'], 'old-sha1': opts['<old-sha1>'], 'new-sha1': opts['<new-sha1>']})
+    if not sys.stdin.isatty():
+        for line in sys.stdin.readlines():
+            old_sha1, new_sha1, ref = line.strip().split()
+            to_submit.append({'repo': opts['<repo>'], 'ref': ref, 'old-sha1': old-sha1, 'new-sha1': new-sha1})
+    host, port = parser.get('golem', 'beanstalk_server').split(':')
+    bs = beanstalkc.Connection(host, int(port))
+    bs.use('golem-updates')
+    for thing in to_submit:
+        bs.put(json.dumps(thing), ttr=600)
+        print "Notified golem of the update to %s" % thing['repo']
+    sys.exit(0)
+
+if opts['--worker']:
+    logging.config.fileConfig(config)
+    prctl.set_name("golem worker")
+    prctl.set_proctitle(' '.join(sys.argv))
+    module = 'golem.worker.' + opts['--worker']
+    daemon = __import__(module)
+    # Need to fix up any logging filenames
+    for handler in logging.root.handlers + functools.reduce(lambda x,y: x+y, [x.handlers for x in logging.Logger.manager.loggerDict.values()], []):
+        if hasattr(handler, 'baseFilename'):
+            handler.baseFilename = os.path.join(os.path.dirname(handler.baseFilename), opts['--worker'] + '.log')
+    daemon = sys.modules[module].Daemon(parser)
+else:
+    logging.config.fileConfig(config)
+    prctl.set_name("golemd")
+    prctl.set_proctitle(' '.join(sys.argv))
+    daemon = golem.daemon.Master(parser)
+
+if opts['--daemon']:
+    daemon.daemonize()
+daemon.run()
+
