@@ -19,9 +19,10 @@ from whelk import shell
 usage = """Golem queueing daemon
 
 Usage:
-  golem [-c|--config <config>] (--worker <worker> | --master) [--daemon]
-  golem [-c|--config <config>] --submit [<repo> [<ref> <old-sha1> <new-sha1>]]
-  golem [-c|--config <config>] --login <service>
+  golem [--config=<config>] --master [--daemon]
+  golem [--config=<config>] --worker=<worker> [--daemon]
+  golem [--config=<config>] --submit [<repo> [<ref> <old-sha1> <new-sha1>]]
+  golem [--config=<config>] --login=<service>
 
 Options:
   -h --help                 Show this help message and exit
@@ -32,7 +33,7 @@ Options:
 
 opts = docopt.docopt(usage)
 default_config = '/etc/golem/golem.conf'
-config = opts.get('--config', default_config)
+config = opts['--config'] or default_config
 parser = ConfigParser.ConfigParser()
 parser.read(config)
 
