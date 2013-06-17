@@ -171,6 +171,9 @@ class Repository(IniConfig):
             gh = github()
             BOGUS_SHA1 = '1' * 40
             user, repo = self.upstream.rsplit('/', 3)[-2:]
+            # For ssh urls
+            if ':' in user:
+                user = user[user.find(':')+1:]
             if repo.endswith('.git'):
                 repo = repo[:-4]
             repo = gh.repository(user, repo)
