@@ -13,32 +13,32 @@ class Daemon(Worker):
         self.logger.info("Building debian source package(s)")
 
         # Fetch tarball created in previous task
-        job.fetch_artefacts(job.requires[0], job.tarball)
-
-        # Check out debian dir
-        job.shell.git('checkout', job.debian_branch, '--', 'debian')
-
-        # Get version from debian dir
-        with open('debian/changelog') as fd:
-            version_line = fd.readline()
-
-        pkgname, epoch, version, release, dist, urgency = re.match('''^
-            (\S+)
-            \s+
-            \(
-                (?:(\d+):)?
-                ([^)]+)
-                -([^)]+)
-            \)
-            \s+
-            (\S+)
-            \s*;\s*urgency\s*=\s*
-            (\S+)
-            $''', version_line, re.VERBOSE).groups()
+        files = job.fetch_artefacts(job.requires[0], job.tarball)
 
         # If version script: get version from there
         if hasattr(job, 'version_script'):
-            job.run_hook('pre-version-mangle', cwd=pkgdir)
+            # Check out debian dir
+            job.shell.git('checkout', job.debian_branch, '--', 'debian')
+
+            # Get version from debian dir
+            with open('debian/changelog') as fd:
+                version_line = fd.readline()
+
+            pkgname, epoch, version, release, dist, urgency = re.match('''^
+                (\S+)
+                \s+
+                \(
+                    (?:(\d+):)?
+                    ([^)]+)
+                    -([^)]+)
+                \)
+                \s+
+                (\S+)
+                \s*;\s*urgency\s*=\s*
+                (\S+)
+                $''', version_line, re.VERBOSE).groups()
+
+            job.run_hook('pre-version-mangle')
             job.version_script.append(job.commit)
             res = job.shell[job.version_script[0]](*job.version_script[1:])
             gitversion = res.stdout.strip()
@@ -51,10 +51,59 @@ class Daemon(Worker):
                 job.shell.dch('-v', v, '-u', 'low', '--distribution', dist, "Automated rebuild from git commit %s" % job.commit)
                 version = gitversion
                 release = '1'
-            job.run_hook('post-version-mangle', cwd=pkgdir)
+            job.run_hook('post-version-mangle')
+
+        else:
+            # Which commit on the debian branch do we want:
+            # - Assume master is always merged into debian
+            # - Go through the first-parent history of debian..current_commit
+            # - If the earliest commit isn't a merge containing a debian dir: unclean merge, abort
+            # - Walk forward in history until encountering another merge, we want the one just before that
+            commits = job.shell.git('rev-list', '--parents', '--ancestry-path', 
+                                    '--first-parent', '%s..%s' % (job.commit, job.debian_branch))
+            commits = [x.split() for x in commits.stdout.splitlines()]
+            commits.reverse() # Let's walk forward in time
+            if not commits:
+                # No commit added yet
+                # Try without --first-parent to see if there is *any* path
+                commits = job.shell.git('rev-list', '--parents', '--ancestry-path', 
+                                        '%s..%s' % (job.commit, job.debian_branch))
+                if commits.stdout.strip():
+                    raise GolemError("First commit after %s is not a merge into the %s branch" % (job.ref, job.debian_branch))
+                raise GolemRetryLater()
+            if len(commits[0]) != 3:
+                raise GolemError("First commit after %s is not a merge into the %s branch" % (job.ref, job.debian_branch))
+            if not job.shell.git('ls-tree', commits[0][0], 'debian').stdout.strip():
+                raise GolemError("First commit after %s is not a merge into the %s branch" % (job.ref, job.debian_branch))
+
+            good_commit = commits[0][0]
+            for commit in commits[1:]:
+                if len(commit) > 2:
+                    break
+                else:
+                    good_commit = commit[0]
+
+            job.shell.git('checkout', good_commit, '--', 'debian')
+
+            with open('debian/changelog') as fd:
+                version_line = fd.readline()
+
+            pkgname, epoch, version, release, dist, urgency = re.match('''^
+                (\S+)
+                \s+
+                \(
+                    (?:(\d+):)?
+                    ([^)]+)
+                    -([^)]+)
+                \)
+                \s+
+                (\S+)
+                \s*;\s*urgency\s*=\s*
+                (\S+)
+                $''', version_line, re.VERBOSE).groups()
 
         # Rename tarball to what debuild expects
-        tarball = glob.glob(job.tarball)[0]
+        tarball = files[0]
         ext = tarball[tarball.rfind('tar'):]
         orig = '%s_%s.orig.%s' % (pkgname, version, ext)
         os.rename(tarball, orig)
