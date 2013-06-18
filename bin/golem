@@ -63,11 +63,11 @@ if opts['--submit']:
                 otps['<repo>'] = opts['<repo>'][:-4]
     to_submit = []
     if opts['<ref>'] or sys.stdin.isatty():
-        to_submit.append({'repo': opts['<repo>'], 'ref': opts['<ref>'], 'old-sha1': opts['<old-sha1>'], 'new-sha1': opts['<new-sha1>']})
+        to_submit.append({'repo': opts['<repo>'], 'ref': opts['<ref>'], 'old-sha1': opts['<old-sha1>'], 'new-sha1': opts['<new-sha1>'], 'update': True})
     if not sys.stdin.isatty():
         for line in sys.stdin.readlines():
             old_sha1, new_sha1, ref = line.strip().split()
-            to_submit.append({'repo': opts['<repo>'], 'ref': ref, 'old-sha1': old-sha1, 'new-sha1': new-sha1})
+            to_submit.append({'repo': opts['<repo>'], 'ref': ref, 'old-sha1': old-sha1, 'new-sha1': new-sha1, 'update': True})
     host, port = parser.get('golem', 'beanstalk_server').split(':')
     bs = beanstalkc.Connection(host, int(port))
     bs.use('golem-updates')

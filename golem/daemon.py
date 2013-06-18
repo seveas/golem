@@ -114,7 +114,8 @@ class Master(Daemon):
                 self.logger.warning("Ignoring update for unknown repository %s" % job['repo'])
             else:
                 self.logger.info("Update found for repo %s" % job['repo'])
-                self.repos[job['repo']].update()
+                if job['update']:
+                    self.repos[job['repo']].update()
                 self.repos[job['repo']].schedule(job['ref'], job['old-sha1'], job['new-sha1'])
         os.chdir('/')
         return True

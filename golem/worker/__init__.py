@@ -158,7 +158,7 @@ class Job(object):
         if self.worker.rsync_password:
             args += ['--password-file', self.worker.rsync_password]
         self.shell.rsync(*args)
-        to_submit = {'repo': self.repo, 'ref': self.ref, 'old-sha1': self.old_commit, 'new-sha1': self.commit}
+        to_submit = {'repo': self.repo, 'ref': self.ref, 'old-sha1': self.old_commit, 'new-sha1': self.commit, 'update': False}
         self.worker.bs.use('golem-updates')
         self.worker.bs.put(json.dumps(to_submit), ttr=600)
 
