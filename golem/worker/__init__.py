@@ -36,10 +36,14 @@ class Worker(Daemon):
                 os.unlink(os.path.join(job.artefact_path, 'finished_' + f))
 
         if self.repo_sync:
+            job.run_hook('pre-sync')
             job.sync()
+            job.run_hook('post-sync')
         os.chdir(job.work_path)
         if self.repo_checkout:
+            job.run_hook('pre-checkout')
             job.checkout(job.commit)
+            job.run_hook('post-checkout')
 
         try:
             self.setup(job)
@@ -58,7 +62,9 @@ class Worker(Daemon):
         else:
             open(os.path.join(job.artefact_path, 'finished_ok'), 'w').close()
         os.chdir('/')
+        job.run_hook('pre-publish')
         job.publish_results()
+        job.run_hook('pre-publish')
         if job.succes:
             job.shell.rm('-rf', job.work_path, cwd='/')
 
