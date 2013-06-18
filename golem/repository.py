@@ -220,13 +220,21 @@ class Repository(IniConfig):
     def schedule(self, ref, old_commit, commit):
         refs = {}
         if ref and ref.startswith(('refs/heads', 'refs/tags')):
-            refs[ref] = [commit]
+            refs[ref] = [(old_commit, commit)]
 
         if not refs:
             for head in self.git('for-each-ref', '--format', '%(refname)', 'refs/heads').stdout.splitlines():
-                with open(os.path.join(self.repo_path, 'logs', 'refs', 'heads', head[11:])) as fd:
-                    log = fd.readlines()
-                    refs[head] = [x.split(None, 2)[1] for x in log]
+                lf = os.path.join(self.repo_path, 'logs', 'refs', 'heads', head[11:])
+                if not os.path.exists(lf):
+                    refs[head] = []
+                else:
+                    with open(lf) as fd:
+                        log = fd.readlines()
+                        refs[head] = [x.split(None, 2)[:2] for x in log]
+            null = '0' * 40
+            for tag in self.git('for-each-ref', '--format', '%(refname) %(objectname)', 'refs/tags').stdout.splitlines():
+                tag, sha = tag.split()
+                refs[tag] = [(null, sha)]
 
         for aname, action in self.actions.items():
             for ref in refs:
@@ -239,7 +247,7 @@ class Repository(IniConfig):
                             handle = True
                             break
                 elif ref.startswith('refs/tags'):
-                    tag = ref[:10]
+                    tag = ref[10:]
                     for tag_ in action.tags:
                         if tag_ == tag or (hasattr(tag_, 'match') and tag_.match(tag)):
                             handle = True
@@ -247,7 +255,7 @@ class Repository(IniConfig):
                 if not handle:
                     continue
 
-                for commit in refs[ref][-(action.backlog+1):]:
+                for old_commit,commit in refs[ref][-(action.backlog+1):]:
                     req_ok = True
                     for req in action.requires:
                         if not self.actions[req[7:]].succes(ref, commit):
@@ -302,6 +310,11 @@ class Action(IniConfig):
         self.daemon.bs.use(self.queue)
         data = {'repo': self.repo_name, 'ref': ref, 'old_commit': old_commit, 'commit': commit, 'action': self.name}
         data.update(self.config)
+        if 'tags' in data:
+            data['tags'] = [x.pattern if hasattr(x, 'pattern') else x for x in data['tags']]
+        if 'branches' in data:
+            data['branches'] = [x.pattern if hasattr(x, 'pattern') else x for x in data['branches']]
+
         self.daemon.bs.put(json.dumps(data), ttr=self.ttr)
         if commit:
             ref += '@' + commit
