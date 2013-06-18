@@ -5,7 +5,7 @@ import os
 import glob
 import json
 import re
-from golem import GolemError, CmdLogger
+from golem import GolemError, GolemRetryLater, CmdLogger
 
 class Worker(Daemon):
     repo_sync = True
@@ -44,6 +44,11 @@ class Worker(Daemon):
         try:
             self.setup(job)
             self.process_job_simple(job)
+            job.succes = True
+        except GolemRetryLater, e:
+            self.logger.error(str(e))
+            with open(os.path.join(job.artefact_path, 'finished_retry'), 'w') as fd:
+                fd.write(str(e))
             job.succes = True
         except GolemError, e:
             job.succes = False

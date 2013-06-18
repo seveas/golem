@@ -1,4 +1,5 @@
 class GolemError(Exception): pass
+class GolemRetryLater(Exception): pass
 
 class CmdLogger(object):
     def __init__(self, logger, logfd=None):
