@@ -10,7 +10,12 @@ import json
 import logging.config
 import golem.daemon
 import golem.repository
-import prctl
+try:
+    import prctl
+except ImportError:
+    class prctl(object):
+        set_name = lambda *args: None
+        set_proctitle = lambda *args: None
 import sys
 import functools
 import os
