@@ -21,7 +21,10 @@ class Daemon(Worker):
         for release in job.release:
             self.logger.info("Building source package for release %s" % release)
             job.shell.sed('-e', '1s/(.*).*;/(%s~%s) %s;/' % (version, release, release), '-i', 'debian/changelog', cwd=pkgdir)
-            job.shell.debuild('-S', '-si', cwd=pkgdir)
+            args = getattr(job, 'debuild_args', ['-S', '-si'])
+            if isinstance(args, basestring):
+                args = [args]
+            job.shell.debuild(*args, cwd=pkgdir)
 
         for changes in glob.glob('*.changes'):
             if changes in orig_files:

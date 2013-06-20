@@ -15,7 +15,9 @@ class Daemon(Worker):
         # If version script: get version from there
         if hasattr(job, 'version_script'):
             # Check out debian dir
+            job.run_hook('pre-debian-checkout')
             job.shell.git('checkout', job.debian_branch, '--', 'debian')
+            job.run_hook('post-debian-checkout')
 
             # Get version from debian dir
             with open('debian/changelog') as fd:
@@ -46,10 +48,21 @@ class Daemon(Worker):
                 else:
                     v = '%s-1' % gitversion
                 job.shell.dch('-v', v, '-u', 'low', '--distribution', dist, "Automated rebuild from git commit %s" % job.commit)
-                version = gitversion
-                release = '1'
             job.run_hook('post-version-mangle')
 
+        # Do we have debian/* tags?
+        elif getattr(job, 'use_tags', 'no').lower() in ('true', 't', 'yes', 'y', '1'):
+            # Do we have a debian tag?
+            tags = job.shell.git('tag', '-l', 'debian/%s*' % job.ref[10:]).stdout.strip().split()
+            if not tags:
+                raise GolemRetryLater("Debian tag not found yet")
+            else:
+                tags.sort()
+                job.run_hook('pre-debian-checkout')
+                job.shell.git('checkout', tags[-1], '--', 'debian')
+                job.run_hook('post-debian-checkout')
+
+        # Detect the commit on the debian branch
         else:
             # Which commit on the debian branch do we want:
             # - Assume master is always merged into debian
@@ -80,24 +93,26 @@ class Daemon(Worker):
                 else:
                     good_commit = commit[0]
 
+            job.run_hook('pre-debian-checkout')
             job.shell.git('checkout', good_commit, '--', 'debian')
+            job.run_hook('post-debian-checkout')
 
-            with open('debian/changelog') as fd:
-                version_line = fd.readline()
+        with open('debian/changelog') as fd:
+            version_line = fd.readline()
 
-            pkgname, epoch, version, release, dist, urgency = re.match('''^
-                (\S+)
-                \s+
-                \(
-                    (?:(\d+):)?
-                    ([^)]+)
-                    -([^)]+)
-                \)
-                \s+
-                (\S+)
-                \s*;\s*urgency\s*=\s*
-                (\S+)
-                $''', version_line, re.VERBOSE).groups()
+        pkgname, epoch, version, release, dist, urgency = re.match('''^
+            (\S+)
+            \s+
+            \(
+                (?:(\d+):)?
+                ([^)]+)
+                -([^)]+)
+            \)
+            \s+
+            (\S+)
+            \s*;\s*urgency\s*=\s*
+            (\S+)
+            $''', version_line, re.VERBOSE).groups()
 
         # Rename tarball to what debuild expects
         tarball = files[0]
@@ -113,7 +128,10 @@ class Daemon(Worker):
         os.rename(dirname, pkgdir)
         os.rename('debian', os.path.join(pkgdir, 'debian'))
         job.run_hook('pre-build', cwd=pkgdir)
-        job.shell.debuild('-S', '-si', cwd=pkgdir)
+        args = getattr(job, 'debuild_args', ['-S', '-si'])
+        if isinstance(args, basestring):
+            args = [args]
+        job.shell.debuild(*args, cwd=pkgdir)
         job.run_hook('post-build', cwd=pkgdir)
 
         changesfile = '%s_%s-%s_source.changes' % (pkgname, version, release)
