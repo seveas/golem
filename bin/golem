@@ -20,6 +20,7 @@ import sys
 import functools
 import os
 from whelk import shell
+import fcntl
 
 usage = """Golem queueing daemon
 
@@ -44,6 +45,7 @@ defaults = {
     'submit_queue':     'golem-updates',
     'chems':            '/etc/golem/chems',
     'repos':            '/var/lib/golem/repos',
+    'lockdir':          '/var/lock/golem',
     'rsync_root':       '',
     'rsync_password':   '',
     'rsync_hardlink':   '',
@@ -131,6 +133,14 @@ if opts['--worker']:
     rsync_hardlink = parser.get([name, 'worker'], 'rsync_hardlink')
     module = parser.get('worker', 'module')
 
+    lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
+    lockfd = open(lockfile, 'a+')
+    try:
+        fcntl.lockf(lockfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        print >>sys.stderr, "Worker is already running"
+        sys.exit(0)
+
     daemon = __import__(module)
     daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, bs_queue, rsync_root, rsync_hardlink, rsync_password)
 else:
@@ -142,6 +152,15 @@ else:
     logger = parser.get('master', 'logger')
     repos = parser.get('master', 'repos')
     chems = parser.get('master', 'chems')
+
+    lockfile = os.path.join(parser.get('golem', 'lockdir'), 'golem' + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
+    lockfd = open(lockfile, 'a+')
+    try:
+        fcntl.lockf(lockfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        print >>sys.stderr, "Master is already running"
+        sys.exit(0)
+
     daemon = golem.daemon.Master(logger, bs_host, bs_port, bs_queue, repos, chems)
     # XXX start workers
 
