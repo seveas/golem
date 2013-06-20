@@ -125,12 +125,12 @@ if opts['--worker']:
     prctl.set_proctitle(' '.join(sys.argv))
     change_logfile(opts['--worker'], opts['--instance'])
 
-    logger = parser.get([name, 'worker'], 'logger')
-    repos = parser.get([name, 'worker'], 'repos')
-    wk_queue = parser.get([name, 'worker'], 'queue')
-    rsync_root = parser.get([name, 'worker'], 'rsync_root')
-    rsync_password = parser.get([name, 'worker'], 'rsync_password')
-    rsync_hardlink = parser.get([name, 'worker'], 'rsync_hardlink')
+    logger = parser.get(['worker:' + name, 'worker'], 'logger')
+    repos = parser.get(['worker:' + name, 'worker'], 'repos')
+    wk_queue = parser.get(['worker:' + name, 'worker'], 'queue')
+    rsync_root = parser.get(['worker:' + name, 'worker'], 'rsync_root')
+    rsync_password = parser.get(['worker:' + name, 'worker'], 'rsync_password')
+    rsync_hardlink = parser.get(['worker:' + name, 'worker'], 'rsync_hardlink')
     module = parser.get('worker', 'module')
 
     lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
@@ -139,7 +139,7 @@ if opts['--worker']:
         fcntl.lockf(lockfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError:
         print >>sys.stderr, "Worker is already running"
-        sys.exit(0)
+        sys.exit(1)
 
     daemon = __import__(module)
     daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, bs_queue, rsync_root, rsync_hardlink, rsync_password)
@@ -162,7 +162,17 @@ else:
         sys.exit(0)
 
     daemon = golem.daemon.Master(logger, bs_host, bs_port, bs_queue, repos, chems)
-    # XXX start workers
+    # Now we start all the workers
+    if opts['--daemon']:
+        # Start the workers
+        workers =  [x[7:] for x in parser.sections() if x.startswith('worker:')]
+        for num, worker in enumerate(workers):
+            print "Starting worker %s (%d/%d)"  % (worker, num+1, len(workers))
+            for instance in range(parser.getint('worker:' + worker, 'instances')):
+                if instance:
+                    shell[sys.argv[0]]('--config', config, '--worker', worker, '--daemon', '--instance', instance)
+                else:
+                    shell[sys.argv[0]]('--config', config, '--worker', worker, '--daemon')
 
 if opts['--daemon']:
     daemon.daemonize()
