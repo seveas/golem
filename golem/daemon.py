@@ -1,25 +1,23 @@
 import beanstalkc
-import ConfigParser
 import json
 import logging
 import os
 import sys
 import traceback
-
 import golem.repository
 
 class Daemon(object):
-    def __init__(self, parser):
-        self.logger = logging.getLogger(self.logger)
+    def __init__(self, logger, bs_host, bs_port, bs_queue):
+        self.logger = logging.getLogger(logger)
 
         # Set up a beanstalk connection
-        self.bs_host, port = parser.get('golem', 'beanstalk_server').split(':')
-        self.bs_port = int(port)
+        self.bs_host, self.bs_port = bs_host, bs_port
+        self.bs_queue = bs_queue
         self.connect()
 
     def connect(self):
         self.bs = beanstalkc.Connection(host=self.bs_host, port=self.bs_port)
-        self.bs.watch(self.queue)
+        self.bs.watch(self.bs_queue)
 
     def run(self):
         while True:
@@ -73,15 +71,12 @@ class Daemon(object):
         sys.stdout, sys.stderr = so, se
 
 class Master(Daemon):
-    queue  = "golem-updates"
-    logger = "golem.master"
-
-    def __init__(self, parser):
-        super(Master, self).__init__(parser)
+    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, chems):
+        super(Master, self).__init__(logger, bs_host, bs_port, bs_queue)
         # Read repositories
         self.repos = {}
-        self.repo_dir = parser.get('golemd', 'repos')
-        self.chems = parser.get('golemd', 'chems')
+        self.repo_dir = repo_dir
+        self.chems = chems
         self.read_repos()
         for repo in self.repos.values():
             if repo.reflogtype == 'github':
@@ -90,11 +85,7 @@ class Master(Daemon):
     def read_repos(self):
         self.logger.info("Loading repositories from %s" % self.chems)
         for file in os.listdir(self.chems):
-            parser = ConfigParser.ConfigParser()
-            # Bunch of muppets defaulting to case-insensitive/lower() all the keys!
-            parser.optionxform = str
-            parser.read(os.path.join(self.chems, file))
-            repo = golem.repository.Repository(self, parser)
+            repo = golem.repository.Repository(self, os.path.join(self.chems, file))
             self.repos[repo.name] = repo
 
     def process_job(self, job):

@@ -1,10 +1,6 @@
 from golem.worker import Worker
 
 class Daemon(Worker):
-    name = 'make-test'
-    logger = 'golem.worker.make-test'
-    queue = 'golem-test-make-test'
-
     def setup(self, job):
         for what in ('configure', 'make', 'make_test'):
             args = getattr(job, '%s_args' % what, [])

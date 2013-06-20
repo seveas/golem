@@ -5,9 +5,6 @@ import requests
 import os
 
 class Daemon(Worker):
-    name = 'pypi-docs'
-    logger = 'golem.worker.pypi-docs'
-    queue = 'golem-publish-pypi-docs'
     repo_sync = False
 
     def process_job_simple(self, job):

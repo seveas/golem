@@ -5,7 +5,7 @@
 
 import beanstalkc
 import docopt
-import ConfigParser
+from golem import ConfigParser
 import json
 import logging.config
 import golem.daemon
@@ -19,8 +19,8 @@ from whelk import shell
 usage = """Golem queueing daemon
 
 Usage:
-  golem [--config=<config>] --master [--daemon]
-  golem [--config=<config>] --worker=<worker> [--daemon]
+  golem [--config=<config>] --master [--daemon] [--instance=<instance>]
+  golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>]
   golem [--config=<config>] --submit [<repo> [<ref> <old-sha1> <new-sha1>]]
   golem [--config=<config>] --login=<service>
 
@@ -28,17 +28,30 @@ Options:
   -h --help                 Show this help message and exit
   -c=<file> --config=<file> Use a different configuration than the default
   --daemon                  Run as a daemon in the background
+  --master                  Run the scheduler. When running instance 1, start the helpers too
   --worker=<worker>         Run the specified worker instead of the master
+  --instance=<instance>     Start a numbered instance of worker/master
 """
+
+defaults = {
+    'logger':           'golem.master',
+    'beanstalk_server': 'localhost:11300',
+    'submit_queue':     'golem-updates',
+    'chems':            '/etc/golem/chems',
+    'repos':            '/var/lib/golem/repos',
+    'rsync_root':       '',
+    'rsync_password':   '',
+    'rsync_hardlink':   '',
+    'instances':        1,
+}
 
 opts = docopt.docopt(usage)
 default_config = '/etc/golem/golem.conf'
 config = opts['--config'] or default_config
-parser = ConfigParser.ConfigParser()
-parser.read(config)
+parser = ConfigParser(config, defaults)
 
 if opts['--login']:
-    if opts['<service>'] == 'github':
+    if opts['--service'] == 'github':
         cf = os.path.join(os.path.expanduser('~'), '.githubconfig-golem')
         if os.path.exists(cf):
             os.unlink(cf)
@@ -48,11 +61,14 @@ if opts['--login']:
         sys.sxit(1)
     sys.exit(0)
 
+bs_host, bs_port = parser.get('golem', 'beanstalk_server').split(':')
+bs_port  = int(bs_port)
+bs_queue = parser.get('golem', 'submit_queue')
+
 if opts['--submit']:
     if not opts['<repo>']:
-        res = shell.git('rev-parse', '--git-dir')
+        res = shell.git('rev-parse', '--git-dir', stderr=None)
         if res.returncode == 0:
-            print res.stderr.rstrip()
             sys.exit(res.returncode)
         git_dir = os.path.abspath(res.stdout.strip())
         if shell.git('rev-parse', '--is-bare-repository').stdout.strip() == 'false':
@@ -68,30 +84,61 @@ if opts['--submit']:
         for line in sys.stdin.readlines():
             old_sha1, new_sha1, ref = line.strip().split()
             to_submit.append({'repo': opts['<repo>'], 'ref': ref, 'old-sha1': old-sha1, 'new-sha1': new-sha1, 'update': True})
-    host, port = parser.get('golem', 'beanstalk_server').split(':')
-    bs = beanstalkc.Connection(host, int(port))
-    bs.use('golem-updates')
+    bs = beanstalkc.Connection(bs_host, bs_port)
+    bs.use(bs_queue)
     for thing in to_submit:
         bs.put(json.dumps(thing), ttr=600)
         print "Notified golem of the update to %s" % thing['repo']
     sys.exit(0)
 
-if opts['--worker']:
-    logging.config.fileConfig(config)
-    prctl.set_name("golem worker")
-    prctl.set_proctitle(' '.join(sys.argv))
-    module = 'golem.worker.' + opts['--worker']
-    daemon = __import__(module)
-    # Need to fix up any logging filenames
+# Now we start daemons
+logging.config.fileConfig(config)
+logger = parser.get('golem', 'logger')
+def change_logfile(filename=None, instance=None):
+    if instance and not instance.isdigit():
+        print >>sys.stderr, "Invalid value for --instance, must be a number"
+        sys.exit(1)
     for handler in logging.root.handlers + functools.reduce(lambda x,y: x+y, [x.handlers for x in logging.Logger.manager.loggerDict.values()], []):
         if hasattr(handler, 'baseFilename'):
-            handler.baseFilename = os.path.join(os.path.dirname(handler.baseFilename), opts['--worker'] + '.log')
-    daemon = sys.modules[module].Daemon(parser)
+            path, fn = os.path.split(handler.baseFilename)
+            fn, ext = os.path.splitext(fn)
+            if not filename:
+                filename = fn
+            if instance:
+                filename += '-%s' % instance
+            handler.baseFilename = os.path.join(path, filename + ext)
+
+if opts['--worker']:
+    name = opts['--worker']
+    parser._defaults['repos'] = '/var/lib/golem/workers'
+    parser._defaults['queue'] = 'golem-%s' % name
+    parser._defaults['logger'] = 'golem.worker.%s' % name
+    parser._defaults['module'] = 'golem.worker.%s' % name.replace('-', '_')
+    prctl.set_name("golem %s" % name)
+    prctl.set_proctitle(' '.join(sys.argv))
+    change_logfile(opts['--worker'], opts['--instance'])
+
+    logger = parser.get([name, 'worker'], 'logger')
+    repos = parser.get([name, 'worker'], 'repos')
+    wk_queue = parser.get([name, 'worker'], 'queue')
+    rsync_root = parser.get([name, 'worker'], 'rsync_root')
+    rsync_password = parser.get([name, 'worker'], 'rsync_password')
+    rsync_hardlink = parser.get([name, 'worker'], 'rsync_hardlink')
+    module = parser.get('worker', 'module')
+
+    daemon = __import__(module)
+    daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, bs_queue, rsync_root, rsync_hardlink, rsync_password)
 else:
-    logging.config.fileConfig(config)
     prctl.set_name("golemd")
     prctl.set_proctitle(' '.join(sys.argv))
-    daemon = golem.daemon.Master(parser)
+    if opts['--instance']:
+        change_logfile(instance=opts['--instance'])
+
+    logger = parser.get('master', 'logger')
+    repos = parser.get('master', 'repos')
+    chems = parser.get('master', 'chems')
+    daemon = golem.daemon.Master(logger, bs_host, bs_port, bs_queue, repos, chems)
+    # XXX start workers
 
 if opts['--daemon']:
     daemon.daemonize()

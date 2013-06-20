@@ -4,9 +4,6 @@ import glob
 import rpm
 
 class Daemon(Worker):
-    name = 'rpm-source'
-    logger = 'golem.worker.rpm-source'
-    queue = 'golem-build-rpm-source'
     repo_checkout = False
 
     def process_job_simple(self, job):

@@ -4,9 +4,6 @@ import glob
 import os
 
 class Daemon(Worker):
-    name = 'openbuildservice'
-    logger = 'golem.worker.openbuildservice'
-    queue = 'golem-publish-openbuildservice'
     repo_sync = False
 
     def process_job_simple(self, job):

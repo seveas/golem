@@ -11,16 +11,13 @@ class Worker(Daemon):
     repo_sync = True
     repo_checkout = True
 
-    def __init__(self, parser):
-        super(Worker, self).__init__(parser)
-        self.repo_dir = parser.get(self.name, 'repos')
-        self.rsync_root = parser.get('golem', 'rsync_root')
-        self.rsync_hardlink = None
-        self.rsync_password = None
-        if parser.has_option('golem', 'rsync_password'):
-            self.rsync_password = parser.get('golem', 'rsync_password')
-        if parser.has_option(self.name, 'rsync_hardlink'):
-            self.rsync_hardlink = parser.get(self.name, 'rsync_hardlink')
+    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, submit_queue, rsync_root, rsync_hardlink, rsync_password):
+        super(Worker, self).__init__(logger, bs_host, bs_port, bs_queue)
+        self.repo_dir = repo_dir
+        self.rsync_root = rsync_root
+        self.rsync_hardlink = rsync_hardlink
+        self.rsync_password = rsync_password
+        self.submit_queue = submit_queue
         if not os.path.exists(self.repo_dir):
             os.makedirs(self.repo_dir)
         self.repo_checkout = self.repo_checkout and self.repo_sync
@@ -152,7 +149,6 @@ class Job(object):
                 self.shell[command](*args, **kwargs)
 
     def checkout(self, commit):
-        # Synced repos may be bare, let's not do that
         self.shell.git('clean', '-dxf')
         self.shell.git('reset', '--hard')
         self.shell.git('checkout', commit)
@@ -170,7 +166,7 @@ class Job(object):
             args += ['--password-file', self.worker.rsync_password]
         self.shell.rsync(*args)
         to_submit = {'repo': self.repo, 'ref': self.ref, 'old-sha1': self.old_commit, 'new-sha1': self.commit, 'update': False}
-        self.worker.bs.use('golem-updates')
+        self.worker.bs.use(self.worker.submit_queue)
         self.worker.bs.put(json.dumps(to_submit), ttr=600)
 
     def fetch_artefacts(self, action, filename):

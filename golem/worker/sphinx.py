@@ -2,10 +2,6 @@ from golem.worker import Worker
 import os
 
 class Daemon(Worker):
-    name = 'sphinx'
-    logger = 'golem.worker.sphinx'
-    queue = 'golem-build-sphinx'
-
     def process_job_simple(self, job):
         self.logger.info("Building documentation")
         job.run_hook('pre-build')

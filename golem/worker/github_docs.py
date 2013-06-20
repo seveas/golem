@@ -5,9 +5,6 @@ import os
 empty_file_hash = 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391'
 
 class Daemon(Worker):
-    name = 'github-docs'
-    logger = 'golem.worker.github-docs'
-    queue = 'golem-publish-github-docs'
     repo_sync = False
 
     def process_job_simple(self, job):

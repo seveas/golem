@@ -5,9 +5,6 @@ from distutils.core import run_setup
 import logging
 
 class Daemon(Worker):
-    name = 'pypi-docs'
-    logger = 'golem.worker.pypi'
-    queue = 'golem-publish-pypi'
     repo_checkout = False
 
     def process_job_simple(self, job):

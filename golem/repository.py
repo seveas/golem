@@ -1,4 +1,5 @@
 import collections
+from golem import ConfigParser
 from   copy import copy
 import getpass
 import github3
@@ -43,6 +44,7 @@ class IniConfig(object):
 class Repository(IniConfig):
     defaults = {'upstream': None, 'reflogtype': None, 'actions': {}, 'remote': {}}
     def __init__(self, daemon, config):
+        config = ConfigParser(config)
         IniConfig.__init__(self, config, 'repo')
         self.logger = logging.getLogger('golem.repo.' + self.name)
         self.logger.info("Parsing configuration for %s" % self.name)

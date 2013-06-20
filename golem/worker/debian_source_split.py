@@ -4,9 +4,6 @@ import os
 import re
 
 class Daemon(Worker):
-    name = 'debian-source-split'
-    logger = 'golem.worker.debian-source-split'
-    queue = 'golem-build-debian-source-split'
     repo_checkout = False
 
     def process_job_simple(self, job):

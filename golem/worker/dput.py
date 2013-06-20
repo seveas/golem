@@ -1,9 +1,6 @@
 from golem.worker import Worker
 
 class Daemon(Worker):
-    name = 'dput'
-    logger = 'golem.worker.dput'
-    queue = 'golem-publish-dput'
     repo_sync = False
 
     def process_job_simple(self, job):
