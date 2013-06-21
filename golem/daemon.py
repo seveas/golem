@@ -87,6 +87,8 @@ class Master(Daemon):
         for file in os.listdir(self.chems):
             repo = golem.repository.Repository(self, os.path.join(self.chems, file))
             self.repos[repo.name] = repo
+            self.logger.info("Updating %s" % repo.name)
+            repo.update()
 
     def process_job(self, job):
         try:

@@ -141,6 +141,7 @@ class Repository(IniConfig):
                 if self.git('config', 'remote.origin.fetch').stdout.strip() != '+refs/heads/*:refs/heads/*':
                     self.git('config', 'remote.origin.fetch', '+refs/heads/*:refs/heads/*')
                 self.logger.info("Fetching from %s" % self.upstream)
+                self.git('remote', 'prune', 'origin')
                 self.git('fetch', 'origin')
             if self.remote:
                 _remotes = self.git('remote').stdout.strip().split()
@@ -152,6 +153,7 @@ class Repository(IniConfig):
                         self.logger.warning("Updating %s url" % remote)
                         self.git('config', 'remote.%s.url' % remote, self.remote[remote])
                     self.logger.info("Fetching from %s" % self.remote[remote])
+                    self.git('remote', 'prune', remote)
                     self.git('fetch', remote)
         self.update_reflog()
 
