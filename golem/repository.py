@@ -24,9 +24,12 @@ class IniConfig(object):
 
     def _set(self, key, val, config=False):
         if isinstance(val, basestring):
-            val = shlex.split(val)
-            if len(val) == 1:
-                val = val[0]
+            if "\n" in val:
+                val = [shlex.split(x) for x in val.split("\n")]
+            else:
+                val = shlex.split(val)
+                if len(val) == 1:
+                    val = val[0]
         if '.' in key:
             key1, key2 = key.split('.', 1)
             if not hasattr(self, key1):
@@ -303,6 +306,13 @@ class Action(IniConfig):
             self.backlog = self.config['backlog'] = int(self.backlog)
         if isinstance(self.ttr, basestring):
             self.ttr = self.config['ttr'] = int(self.ttr)
+        if hasattr(self, 'hook'):
+            for key, val in self.hook.items():
+                if isinstance(val, basestring):
+                    self.hook[key] = [[val]]
+                elif isinstance(val[0], basestring):
+                    self.hook[key] = [val]
+
         if not self.queue:
             raise ValueError("No queue specified")
 

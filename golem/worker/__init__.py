@@ -113,8 +113,7 @@ class Job(object):
         self.shell.rsync(*args)
 
     def run_hook(self, which, **kwargs):
-        if which in self.hook:
-            command = self.hook[which]
+        for command in self.hook.get(which, []):
             if '|' in command:
                 pipe = None
                 while command:
