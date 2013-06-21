@@ -133,10 +133,13 @@ class Repository(IniConfig):
                 if res.returncode != 0:
                     raise GolemError("Unable to clone repository: %s" % res.stdout)
                 self.git('config', 'core.logallrefupdates', 'false')
+                self.git('config', 'remote.origin.fetch', 'refs/heads/*:refs/heads/*')
             else:
                 if self.git('config', 'remote.origin.url').stdout.strip() != self.upstream:
                     self.logger.warning("Updating origin url")
                     self.git('config', 'remote.origin.url', self.upstream)
+                if self.git('config', 'remote.origin.fetch').stdout.strip() != '+refs/heads/*:refs/heads/*':
+                    self.git('config', 'remote.origin.fetch', '+refs/heads/*:refs/heads/*')
                 self.logger.info("Fetching from %s" % self.upstream)
                 self.git('fetch', 'origin')
             if self.remote:
