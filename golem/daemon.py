@@ -85,6 +85,8 @@ class Master(Daemon):
     def read_repos(self):
         self.logger.info("Loading repositories from %s" % self.chems)
         for file in os.listdir(self.chems):
+            if not file.endswith('.conf'):
+                continue
             repo = golem.repository.Repository(self, os.path.join(self.chems, file))
             self.repos[repo.name] = repo
             self.logger.info("Updating %s" % repo.name)
