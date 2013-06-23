@@ -58,14 +58,24 @@ config = opts['--config'] or default_config
 parser = ConfigParser(config, defaults)
 
 if opts['--login']:
-    if opts['--service'] == 'github':
+    svc = opts['--login']
+    if svc == 'github':
         cf = os.path.join(os.path.expanduser('~'), '.githubconfig-golem')
         if os.path.exists(cf):
-            os.unlink(cf)
+            print >>sys.stderr, "%s already exists. Remove to relogin" % cf
+            sys.exit(1)
         golem.repository.github(try_login=True)
     else:
-        print >>sys.stderr, "Unknown service: %s" % opts['<service>']
-        sys.sxit(1)
+        try:
+            mod = __import__('golem.worker.%s' % svc)
+            mod = sys.modules['golem.worker.%s' % svc]
+        except ImportError:
+            print >>sys.stderr, "Unknown service: %s" % svc
+            sys.exit(1)
+        if not hasattr(mod.Daemon, 'login'):
+            print >>sys.stderr, "%s does not support logging in" % svc
+            sys.exit(1)
+        mod.Daemon.login()
     sys.exit(0)
 
 bs_host, bs_port = parser.get('golem', 'beanstalk_server').split(':')

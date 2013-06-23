@@ -352,7 +352,7 @@ def github(try_login=False):
 
     token = shell.git('config', '--file', config_file, 'github.token').stdout.strip()
     if not token and try_login:
-        password = getpass.getpass("GitHub password: ")
+        password = getpass.getpass("Github password: ")
         auth = github3.authorize(user, password, ['user', 'repo', 'gist'],
                 "Golem on %s" % socket.gethostname(), "http://seveas.github.com/golem")
         token = auth.token
