@@ -1,5 +1,5 @@
 from golem.worker import Worker
-from golem import GolemError
+from golem import GolemError, GolemRetryLater
 import glob
 import os
 
@@ -33,6 +33,6 @@ class Daemon(Worker):
             self.logger.info("Checking out package %s" % job.package)
             job.shell.osc('co', job.package, cwd=osc_root)
         if job.shell.osc('status', cwd=job.osc_path).stdout.strip():
-            raise GolemError("Package checkout in %s unclean, aborting" % job.osc_path)
+            raise GolemRetryLater("Package checkout in %s unclean, aborting" % job.osc_path)
         self.logger.info("Pulling updates from openbuildservice")
         job.shell.osc('up', cwd=job.osc_path)
