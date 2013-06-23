@@ -5,6 +5,7 @@ import os
 import glob
 import json
 import re
+import time
 from golem import GolemError, GolemRetryLater, CmdLogger
 
 class Worker(Daemon):
@@ -190,6 +191,10 @@ class Job(object):
 def check_sp(command, sp, res):
     if isinstance(res.returncode, int):
         if res.returncode != 0:
+            if command.name.endswith('/git') and 'index.lock' in res.stderr:
+                # Let's retry
+                time.sleep(random.random())
+                return command(*command.args, **command.kwargs)
             raise GolemError("%s %s failed: %s" % (command.name, ' '.join(command.args), res.stderr))
     elif res.returncode.count(0) != len(res.returncode):
         raise GolemError("%s %s failed: %s" % (command.name, ' '.join(command.args), res.stderr))
