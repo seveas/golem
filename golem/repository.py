@@ -312,6 +312,7 @@ class Action(IniConfig):
                     self.hook[key] = [[val]]
                 elif isinstance(val[0], basestring):
                     self.hook[key] = [val]
+            self.config['hook'] = self.hook
 
         if not self.queue:
             raise ValueError("No queue specified")
