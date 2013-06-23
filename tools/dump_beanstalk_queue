@@ -19,7 +19,7 @@ for queue in bs.tubes():
     if kick:
         bs.kick(qstats['current-jobs-buried'])
     for k,v in qstats.items():
-        if 'job' in k:
+        if 'job' in k and v and k != 'total-jobs':
             print '  %s: %s' % (k.title().replace('-', ' '), v)
     while True:
         job = bs.reserve(timeout=0)
