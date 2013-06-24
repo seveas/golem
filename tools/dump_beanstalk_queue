@@ -7,6 +7,7 @@ import json
 drop = '--drop' in sys.argv
 kick = '--kick' in sys.argv
 stats = '--stats' in sys.argv
+peek = '--peek' in sys.argv
 
 bs = beanstalkc.Connection('localhost', 11300)
 for queue in bs.tubes():
@@ -15,6 +16,19 @@ for queue in bs.tubes():
     print "Queue: %s" % queue
     bs.watch(queue)
     bs.use(queue)
+    qstats = bs.stats_tube(queue)
+    while peek and qstats['current-jobs-buried']:
+        job = bs.peek_buried()
+        print "  Job: %d" % job.jid
+        data = json.loads(job.body)
+        for item in data:
+            print "    %s: %s" % (item, data[item])
+        if raw_input("Delete? [y/N] ").lower() == 'y':
+            job.delete()
+        else:
+            break
+        qstats = bs.stats_tube(queue)
+
     qstats = bs.stats_tube(queue)
     if kick:
         bs.kick(qstats['current-jobs-buried'])
