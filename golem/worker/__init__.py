@@ -46,24 +46,17 @@ class Worker(Daemon):
         try:
             self.setup(job)
             self.process_job_simple(job)
-            job.succes = True
+            job.result = 'success'
         except GolemRetryLater, e:
             self.logger.error(str(e))
-            with open(os.path.join(job.artefact_path, 'finished_retry'), 'w') as fd:
-                fd.write(str(e))
-            job.succes = True
+            job.result = 'retry'
         except GolemError, e:
-            job.succes = False
-            self.logger.error(str(e))
-            with open(os.path.join(job.artefact_path, 'finished_fail'), 'w') as fd:
-                fd.write(str(e))
-        else:
-            open(os.path.join(job.artefact_path, 'finished_ok'), 'w').close()
+            job.result = 'fail'
         os.chdir('/')
         job.run_hook('pre-publish')
         job.publish_results()
         job.run_hook('pre-publish')
-        if job.succes:
+        if job.result == 'success':
             job.shell.rm('-rf', job.work_path, cwd='/')
 
         return True
@@ -165,7 +158,7 @@ class Job(object):
         if self.worker.rsync_password:
             args += ['--password-file', self.worker.rsync_password]
         self.shell.rsync(*args)
-        to_submit = {'repo': self.repo, 'ref': self.ref, 'old-sha1': self.old_commit, 'new-sha1': self.commit, 'update': False}
+        to_submit = {'repo': self.repo, 'ref': self.ref, 'old-sha1': self.old_commit, 'new-sha1': self.commit, 'why': 'action-done', 'action': self.action, 'result': self.result}
         self.worker.bs.use(self.worker.submit_queue)
         self.worker.bs.put(json.dumps(to_submit), ttr=600)
 

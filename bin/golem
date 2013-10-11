@@ -50,6 +50,7 @@ defaults = {
     'rsync_password':   '',
     'rsync_hardlink':   '',
     'instances':        1,
+    'db':               '',
 }
 
 opts = docopt.docopt(usage)
@@ -96,11 +97,11 @@ if opts['--submit']:
                 otps['<repo>'] = opts['<repo>'][:-4]
     to_submit = []
     if opts['<ref>'] or sys.stdin.isatty():
-        to_submit.append({'repo': opts['<repo>'], 'ref': opts['<ref>'], 'old-sha1': opts['<old-sha1>'], 'new-sha1': opts['<new-sha1>'], 'update': True})
+        to_submit.append({'repo': opts['<repo>'], 'ref': opts['<ref>'], 'old-sha1': opts['<old-sha1>'], 'new-sha1': opts['<new-sha1>'], 'why': 'post-receive'})
     if not sys.stdin.isatty():
         for line in sys.stdin.readlines():
             old_sha1, new_sha1, ref = line.strip().split()
-            to_submit.append({'repo': opts['<repo>'], 'ref': ref, 'old-sha1': old-sha1, 'new-sha1': new-sha1, 'update': True})
+            to_submit.append({'repo': opts['<repo>'], 'ref': ref, 'old-sha1': old-sha1, 'new-sha1': new-sha1, 'why': 'post-receive'})
     bs = beanstalkc.Connection(bs_host, bs_port)
     bs.use(bs_queue)
     for thing in to_submit:
@@ -115,7 +116,7 @@ def change_logfile(filename=None, instance=None):
     if instance and not instance.isdigit():
         print >>sys.stderr, "Invalid value for --instance, must be a number"
         sys.exit(1)
-    for handler in logging.root.handlers + functools.reduce(lambda x,y: x+y, [x.handlers for x in logging.Logger.manager.loggerDict.values()], []):
+    for handler in logging.root.handlers + functools.reduce(lambda x,y: x+y, [x.handlers for x in logging.Logger.manager.loggerDict.values() if hasattr(x, 'handlers')], []):
         if hasattr(handler, 'baseFilename'):
             path, fn = os.path.split(handler.baseFilename)
             fn, ext = os.path.splitext(fn)
@@ -144,6 +145,8 @@ if opts['--worker']:
     module = parser.get('worker', 'module')
 
     lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
+    if not os.path.exists(os.path.dirname(lockfile)):
+        os.makedirs(os.path.dirname(lockfile))
     lockfd = open(lockfile, 'a+')
     try:
         fcntl.lockf(lockfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -162,8 +165,11 @@ else:
     logger = parser.get('master', 'logger')
     repos = parser.get('master', 'repos')
     chems = parser.get('master', 'chems')
+    db = parser.get('master', 'db')
 
     lockfile = os.path.join(parser.get('golem', 'lockdir'), 'golem' + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
+    if not os.path.exists(os.path.dirname(lockfile)):
+        os.makedirs(os.path.dirname(lockfile))
     lockfd = open(lockfile, 'a+')
     try:
         fcntl.lockf(lockfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -171,7 +177,7 @@ else:
         print >>sys.stderr, "Master is already running"
         sys.exit(0)
 
-    daemon = golem.daemon.Master(logger, bs_host, bs_port, bs_queue, repos, chems)
+    daemon = golem.daemon.Master(logger, bs_host, bs_port, bs_queue, repos, chems, db)
     # Now we start all the workers
     if opts['--daemon']:
         # Start the workers

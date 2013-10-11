@@ -12,6 +12,8 @@ import requests
 import shlex
 import socket
 import whelk
+import golem.db
+import sqlalchemy.sql as sql
 
 class IniConfig(object):
     defaults = {}
@@ -46,9 +48,9 @@ class IniConfig(object):
 
 class Repository(IniConfig):
     defaults = {'upstream': None, 'reflogtype': None, 'actions': {}, 'remote': {}}
-    def __init__(self, daemon, config):
+    def __init__(self, daemon, config, db):
         config = ConfigParser(config)
-        IniConfig.__init__(self, config, 'repo')
+        IniConfig.__init__(self, config,    'repo')
         self.logger = logging.getLogger('golem.repo.' + self.name)
         self.logger.info("Parsing configuration for %s" % self.name)
         self.path = os.path.join(daemon.repo_dir, self.name)
@@ -122,6 +124,10 @@ class Repository(IniConfig):
                                 self.actions[action].tags.remove(tag)
 
         self.create_dirs()
+
+        _r = golem.db.repository
+        self.id = db.execute(sql.select([_r.c.id]).where(_r.c.name==self.name)).fetchone()
+        self.id = self.id.id if self.id else db.execute(_r.insert().values(name=self.name)).inserted_primary_key[0]
 
     def create_dirs(self):
         if not os.path.exists(self.artefact_path):
@@ -227,12 +233,25 @@ class Repository(IniConfig):
         else:
             raise GolemError("Don't know how to fetch the reflog")
 
-    def schedule(self, ref, old_commit, commit):
+    def schedule(self, job, db):
+        ref = job.get('ref', None)
+        why = job['why']
+        repo = job['repo']
+
+        _c = golem.db.commit
+        _a = golem.db.action
+        _r = golem.db.repository
+
         refs = {}
         if ref and ref.startswith(('refs/heads', 'refs/tags')):
-            refs[ref] = [(old_commit, commit)]
+            refs[ref] = [(job['old-sha1'], job['new-sha1'])]
 
-        if not refs:
+        if why == 'action-done':
+            aid = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
+                    sql.and_(_r.c.name == job['repo'], _c.c.ref==job['ref'], _c.c.sha==job['new-sha1'], _a.c.name==job['action']))).fetchone()[0]
+            db.execute(_a.update().values(status=job['result']).where(_a.c.id==aid))
+
+        if why == 'post-receive' and not refs:
             for head in self.git('for-each-ref', '--format', '%(refname)', 'refs/heads').stdout.splitlines():
                 lf = os.path.join(self.repo_path, 'logs', 'refs', 'heads', head[11:])
                 if not os.path.exists(lf):
@@ -247,6 +266,8 @@ class Repository(IniConfig):
                 refs[tag] = [(null, sha)]
 
         for aname, action in self.actions.items():
+            if job['why'] == 'action-done' and 'action:' + job['action'] not in action.requires:
+                continue
             for ref in refs:
                 # Do we want to handle this thing?
                 handle = False
@@ -266,11 +287,23 @@ class Repository(IniConfig):
                     continue
 
                 for old_commit,commit in refs[ref][-(action.backlog+1):]:
-                    req_ok = True
-                    for req in action.requires:
-                        if not self.actions[req[7:]].succes(ref, commit):
-                            req_ok = False
-                    if req_ok and not action.scheduled(ref, commit):
+                    cid = db.execute(_c.select().where(_c.c.repository==self.id).where(_c.c.ref==ref).where(_c.c.sha==commit)).fetchone()
+                    cid = cid.id if cid else db.execute(_c.insert().values(repository=self.id, ref=ref, sha=commit)).inserted_primary_key[0]
+
+                    act = db.execute(_a.select().where(_a.c.commit==cid).where(_a.c.name==action.name)).fetchone()
+                    if not act:
+                        db.execute(_a.insert().values(commit=cid, name=action.name, status='new'))
+                        act = db.execute(_a.select().where(_a.c.commit==cid).where(_a.c.name==action.name)).fetchone()
+
+                    # Check if all dependencies have been met
+                    if action.requires:
+                        requires = [x.replace('action:','') for x in action.requires]
+                        actions = db.execute(_a.select().where(_a.c.commit==cid).where(_a.c.name.in_(requires)).where(_a.c.status=='success')).fetchall()
+                        if len(actions) != len(action.requires):
+                            continue
+
+                    if act.status == 'new':
+                        db.execute(_a.update().where(_a.c.id==act.id).values(status='scheduled'))
                         action.schedule(ref, old_commit, commit)
 
     def git(self, *args, **kwargs):
@@ -316,12 +349,6 @@ class Action(IniConfig):
 
         if not self.queue:
             raise ValueError("No queue specified")
-
-    def succes(self, ref, commit):
-        return os.path.exists(os.path.join(self.artefact_path, '%s@%s' % (ref, commit), 'finished_ok'))
-
-    def scheduled(self, ref, commit):
-        return os.path.exists(os.path.join(self.artefact_path, '%s@%s' % (ref, commit)))
 
     def schedule(self, ref, old_commit, commit):
         self.logger.info("Scheduling %s for %s@%s" % (self.name, ref, commit))

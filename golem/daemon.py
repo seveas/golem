@@ -5,6 +5,7 @@ import os
 import sys
 import traceback
 import golem.repository
+import golem.db
 
 class Daemon(object):
     def __init__(self, logger, bs_host, bs_port, bs_queue):
@@ -71,12 +72,14 @@ class Daemon(object):
         sys.stdout, sys.stderr = so, se
 
 class Master(Daemon):
-    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, chems):
+    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, chems, db):
         super(Master, self).__init__(logger, bs_host, bs_port, bs_queue)
         # Read repositories
         self.repos = {}
         self.repo_dir = repo_dir
         self.chems = chems
+        self.engine = golem.db.create_engine(db)
+        golem.db.metadata.create_all(self.engine)
         self.read_repos()
         for repo in self.repos.values():
             if repo.reflogtype == 'github':
@@ -84,13 +87,15 @@ class Master(Daemon):
 
     def read_repos(self):
         self.logger.info("Loading repositories from %s" % self.chems)
+        db = self.engine.connect()
         for file in os.listdir(self.chems):
             if not file.endswith('.conf'):
                 continue
-            repo = golem.repository.Repository(self, os.path.join(self.chems, file))
+            repo = golem.repository.Repository(self, os.path.join(self.chems, file), db)
             self.repos[repo.name] = repo
             self.logger.info("Updating %s" % repo.name)
-            repo.update()
+            # repo.update()
+        db.close()
 
     def process_job(self, job):
         try:
@@ -109,8 +114,10 @@ class Master(Daemon):
                 self.logger.warning("Ignoring update for unknown repository %s" % job['repo'])
             else:
                 self.logger.info("Update found for repo %s" % job['repo'])
-                if job['update']:
+                if job['why'] == 'post-receive':
                     self.repos[job['repo']].update()
-                self.repos[job['repo']].schedule(job['ref'], job['old-sha1'], job['new-sha1'])
+                db = self.engine.connect()
+                self.repos[job['repo']].schedule(job, db)
+                db.close()
         os.chdir('/')
         return True
