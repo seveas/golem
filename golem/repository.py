@@ -243,8 +243,11 @@ class Repository(IniConfig):
         _r = golem.db.repository
 
         refs = {}
+        tags = []
         if ref and ref.startswith(('refs/heads', 'refs/tags')):
             refs[ref] = [(job['old-sha1'], job['new-sha1'])]
+        if ref and ref.startswith('refs/tags'):
+            tags = [(ref, 0)]
 
         if why == 'action-done':
             aid = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
@@ -261,13 +264,26 @@ class Repository(IniConfig):
                         log = fd.readlines()
                         refs[head] = [x.split(None, 2)[:2] for x in log]
             null = '0' * 40
-            for tag in self.git('for-each-ref', '--format', '%(refname) %(objectname)', 'refs/tags').stdout.splitlines():
-                tag, sha = tag.split()
+            for tag in self.git('for-each-ref', '--format', '%(refname) %(*objectname) %(objectname) %(taggerdate:raw) %(committerdate:raw)', 'refs/tags').stdout.splitlines():
+                data = tag.split()
+                tag, sha = data[:2]
+                ts = data[-2:]
+                ts = int(ts[0]) + (-1 if ts[1][0] == '-' else 1) * (3600 * int(ts[1][1:3]) + 60 * int(ts[1][3:]))
                 refs[tag] = [(null, sha)]
+                tags.append((tag, ts))
+
+        tags.sort(key=lambda x: x[1], reverse=True)
 
         for aname, action in self.actions.items():
             if job['why'] == 'action-done' and 'action:' + job['action'] not in action.requires:
                 continue
+            my_tags = []
+            for tag in tags:
+                tag = tag[0][10:]
+                for tag_ in action.tags:
+                    if tag_ == tag or (hasattr(tag_, 'match') and tag_.match(tag)):
+                        my_tags.append(tag)
+            my_tags = my_tags[:action.backlog+1]
             for ref in refs:
                 # Do we want to handle this thing?
                 handle = False
@@ -279,10 +295,9 @@ class Repository(IniConfig):
                             break
                 elif ref.startswith('refs/tags'):
                     tag = ref[10:]
-                    for tag_ in action.tags:
-                        if tag_ == tag or (hasattr(tag_, 'match') and tag_.match(tag)):
-                            handle = True
-                            break
+                    if tag in my_tags:
+                        handle = True
+
                 if not handle:
                     continue
 
