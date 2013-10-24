@@ -143,3 +143,5 @@ class Daemon(Worker):
         changesfile = '%s_%s-%s_source.changes' % (pkgname, version, release)
         for src in job.shell.dcmd(changesfile).stdout.strip().split():
             os.rename(src, os.path.join(job.artefact_path, os.path.basename(src)))
+        if os.path.exists(orig):
+            os.rename(orig, os.path.join(job.artefact_path, orig))
