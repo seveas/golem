@@ -1,0 +1,24 @@
+Continuous integration, testing, releasing and kitchen sinks for git
+====================================================================
+
+With golem, every git commit, push or tag can set into motion a set of actions
+that you determine. From running tests on every push to automatically creating
+releases and uploading them to various points. It's all possible.
+
+Does this remind you of anything? Of course! Jenkins!
+
+This proect very much aims to be "not Jenkins" and was started because Jenkins
+frustrated me. Specifically:
+
+- It's not java. Not that ava is a bad language, but writing simple extensions
+  is a pain and Golem is meant to be trivial to extend. 
+- Testing is *not* the main thing that can be done
+- Modular build with workers and actions that can depend on each other
+- Though it's written in python, other languages are fist-class. You do not
+  need to write workers  in python.
+- You can configure golem with plain text files
+- You can run multiple actions for the same repo (or even the same commit!) at
+  the same time
+
+Golem is currently in alpha stage. Though I'm using it to release all my own
+software, I'm still changing golem and its API for workers.
