@@ -72,7 +72,7 @@ class Daemon(object):
         sys.stdout, sys.stderr = so, se
 
 class Master(Daemon):
-    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, chems, db):
+    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, chems, db, do_update):
         super(Master, self).__init__(logger, bs_host, bs_port, bs_queue)
         # Read repositories
         self.repos = {}
@@ -84,6 +84,9 @@ class Master(Daemon):
         for repo in self.repos.values():
             if repo.reflogtype == 'github':
                 golem.repository.github()
+            if do_update:
+                self.logger.info("Updating %s" % repo.name)
+                repo.update()
 
     def read_repos(self):
         self.logger.info("Loading repositories from %s" % self.chems)
@@ -93,8 +96,6 @@ class Master(Daemon):
                 continue
             repo = golem.repository.Repository(self, os.path.join(self.chems, file), db)
             self.repos[repo.name] = repo
-            self.logger.info("Updating %s" % repo.name)
-            # repo.update()
         db.close()
 
     def process_job(self, job):

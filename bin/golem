@@ -25,7 +25,7 @@ import fcntl
 usage = """Golem queueing daemon
 
 Usage:
-  golem [--config=<config>] --master [--daemon] [--instance=<instance>]
+  golem [--config=<config>] --master [--daemon] [--instance=<instance>] [--update-on-startup]
   golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>]
   golem [--config=<config>] --submit [<repo> [<ref> <old-sha1> <new-sha1>]]
   golem [--config=<config>] --login=<service>
@@ -37,6 +37,7 @@ Options:
   --master                  Run the scheduler. When running instance 1, start the helpers too
   --worker=<worker>         Run the specified worker instead of the master
   --instance=<instance>     Start a numbered instance of worker/master
+  --update-on-startup       Do a git fetch of all repositories on startup
 """
 
 defaults = {
@@ -177,7 +178,7 @@ else:
         print >>sys.stderr, "Master is already running"
         sys.exit(0)
 
-    daemon = golem.daemon.Master(logger, bs_host, bs_port, bs_queue, repos, chems, db)
+    daemon = golem.daemon.Master(logger, bs_host, bs_port, bs_queue, repos, chems, db, opts['--update-on-startup'])
     # Now we start all the workers
     if opts['--daemon']:
         # Start the workers
