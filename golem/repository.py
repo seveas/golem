@@ -320,6 +320,9 @@ class Repository(IniConfig):
                     if act.status == 'new':
                         db.execute(_a.update().where(_a.c.id==act.id).values(status='scheduled'))
                         action.schedule(ref, old_commit, commit)
+                    elif job['old-sha1'] == 'reschedule' and act.status in ('fail', 'retry'):
+                        db.execute(_a.update().where(_a.c.id==act.id).values(status='scheduled'))
+                        action.schedule(ref, old_commit, commit)
 
     def git(self, *args, **kwargs):
         res = self.shell.git(*args, **kwargs)
