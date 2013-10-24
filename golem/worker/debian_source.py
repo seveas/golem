@@ -68,7 +68,8 @@ class Daemon(Worker):
             # - Assume master is always merged into debian
             # - Go through the first-parent history of debian..current_commit
             # - If the earliest commit isn't a merge containing a debian dir: unclean merge, abort
-            # - Walk forward in history until encountering another merge, we want the one just before that
+            # - If this is the first commit on the debian branch, and has only one parent: it's the start of the debian branch
+            # - Walk forward in history until encountering another merge with master (one parent has no debian dir), we want the one just before that
             commits = job.shell.git('rev-list', '--parents', '--ancestry-path', 
                                     '--first-parent', '%s..%s' % (job.commit, job.debian_branch))
             commits = [x.split() for x in commits.stdout.splitlines()]
@@ -79,19 +80,24 @@ class Daemon(Worker):
                 commits = job.shell.git('rev-list', '--parents', '--ancestry-path', 
                                         '%s..%s' % (job.commit, job.debian_branch))
                 if commits.stdout.strip():
-                    raise GolemError("First commit after %s is not a merge into the %s branch" % (job.ref, job.debian_branch))
+                    raise GolemError("First commit after %s is not a merge into the %s branch (1)" % (job.ref, job.debian_branch))
                 raise GolemRetryLater()
-            if len(commits[0]) != 3:
-                raise GolemError("First commit after %s is not a merge into the %s branch" % (job.ref, job.debian_branch))
+            if len(commits[0]) != 3 and not job.shell.git('ls-tree', commits[0][0], '--', 'debian').stdout:
+                raise GolemError("First commit after %s is not a merge into the %s branch (2)" % (job.ref, job.debian_branch))
             if not job.shell.git('ls-tree', commits[0][0], 'debian').stdout.strip():
-                raise GolemError("First commit after %s is not a merge into the %s branch" % (job.ref, job.debian_branch))
+                raise GolemError("First commit after %s is not a merge into the %s branch (3)" % (job.ref, job.debian_branch))
 
             good_commit = commits[0][0]
             for commit in commits[1:]:
                 if len(commit) > 2:
-                    break
-                else:
-                    good_commit = commit[0]
+                    # Assume that if a debian/ dir exists in the parent, it's not master
+                    # Because merges might mean other branches (pull requests) got merged
+                    for parent in commit[1:]:
+                        if job.shell.git('ls-tree', parent, '--', 'debian').stdout:
+                            break
+                    else:
+                        break
+                good_commit = commit[0]
 
             job.run_hook('pre-debian-checkout')
             job.shell.git('checkout', good_commit, '--', 'debian')
