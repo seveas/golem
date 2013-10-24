@@ -49,9 +49,10 @@ class Worker(Daemon):
             self.process_job_simple(job)
             job.result = 'success'
         except GolemRetryLater, e:
-            self.logger.error(str(e))
+            self.logger.error(unicode(e).encode('utf-8'))
             job.result = 'retry'
         except GolemError, e:
+            self.logger.error(unicode(e).encode('utf-8'))
             job.result = 'fail'
         os.chdir('/')
         job.run_hook('pre-publish')
@@ -189,6 +190,6 @@ def check_sp(command, sp, res):
                 # Let's retry
                 time.sleep(random.random())
                 return command(*command.args, **command.kwargs)
-            raise GolemError("%s %s failed: %s" % (command.name, ' '.join(command.args), res.stderr))
+            raise GolemError("%s %s failed: %s" % (command.name, ' '.join(command.args), res.stderr.decode('utf-8')))
     elif res.returncode.count(0) != len(res.returncode):
-        raise GolemError("%s %s failed: %s" % (command.name, ' '.join(command.args), res.stderr))
+        raise GolemError("%s %s failed: %s" % (command.name, ' '.join(command.args), res.stderr.decode('utf-8')))
