@@ -26,7 +26,7 @@ usage = """Golem queueing daemon
 
 Usage:
   golem [--config=<config>] --master [--daemon] [--instance=<instance>] [--update-on-startup]
-  golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>]
+  golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>] [--one]
   golem [--config=<config>] --submit [<repo> [<ref> <old-sha1> <new-sha1>]]
   golem [--config=<config>] --login=<service>
 
@@ -38,6 +38,7 @@ Options:
   --worker=<worker>         Run the specified worker instead of the master
   --instance=<instance>     Start a numbered instance of worker/master
   --update-on-startup       Do a git fetch of all repositories on startup
+  --one                     Process one update and exit
 """
 
 defaults = {
@@ -156,7 +157,7 @@ if opts['--worker']:
         sys.exit(1)
 
     daemon = __import__(module)
-    daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, bs_queue, rsync_root, rsync_hardlink, rsync_password)
+    daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, bs_queue, rsync_root, rsync_hardlink, rsync_password, opts['--one'])
 else:
     prctl.set_name("golemd")
     prctl.set_proctitle(' '.join(sys.argv))

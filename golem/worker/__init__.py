@@ -12,13 +12,14 @@ class Worker(Daemon):
     repo_sync = True
     repo_checkout = True
 
-    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, submit_queue, rsync_root, rsync_hardlink, rsync_password):
+    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, submit_queue, rsync_root, rsync_hardlink, rsync_password, do_one):
         super(Worker, self).__init__(logger, bs_host, bs_port, bs_queue)
         self.repo_dir = repo_dir
         self.rsync_root = rsync_root
         self.rsync_hardlink = rsync_hardlink
         self.rsync_password = rsync_password
         self.submit_queue = submit_queue
+        self.do_one = do_one
         if not os.path.exists(self.repo_dir):
             os.makedirs(self.repo_dir)
         self.repo_checkout = self.repo_checkout and self.repo_sync
@@ -59,7 +60,7 @@ class Worker(Daemon):
         if job.result == 'success':
             job.shell.rm('-rf', job.work_path, cwd='/')
 
-        return True
+        return not self.do_one
 
 class Job(object):
     def __init__(self, worker, data):
