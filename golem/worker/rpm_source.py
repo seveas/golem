@@ -12,13 +12,10 @@ class Daemon(Worker):
         files = job.fetch_artefacts(job.requires[0], job.tarball)
         tarball = files[0]
 
-
         # If version script: get version from there
         if hasattr(job, 'version_script'):
             # Check out specfile
-            job.run_hook('pre-spec-checkout')
-            job.shell.git('checkout', job.rpm_branch, '--', job.specfile)
-            job.run_hook('post-spec-checkout')
+            self.checkout(job.rpm_branch, job)
             spec = rpm.ts().parseSpec(job.specfile).sourceHeader
 
             job.run_hook('pre-version-mangle')
@@ -44,9 +41,7 @@ class Daemon(Worker):
                 raise GolemRetryLater("RPM tag not found yet")
             else:
                 tags.sort()
-                job.run_hook('pre-spec-checkout')
-                job.shell.git('checkout', tags[-1], '--', job.specfile)
-                job.run_hook('post-spec-checkout')
+                self.checkout(tags[-1], job)
 
         # Detect the commit on the rpm branch
         else:
@@ -85,10 +80,19 @@ class Daemon(Worker):
                         break
                 good_commit = commit[0]
 
-            job.run_hook('pre-spec-checkout')
-            job.shell.git('checkout', good_commit, '--', job.specfile)
-            job.run_hook('post-spec-checkout')
+            self.checkout(good_commit, job)
 
         job.run_hook('pre-build')
         job.shell.rpmbuild('-bs', '--nodeps', '--define', '_sourcedir %s' % os.getcwd(), '--define', '_srcrpmdir %s' % job.artefact_path, job.specfile)
         job.run_hook('post-build')
+
+    def checkout(self, commit, job):
+        job.run_hook('pre-spec-checkout')
+        job.shell.git('checkout', commit, '--', job.specfile)
+        for source in rpm.ts().parseSpec(job.specfile).sources:
+            try:
+                job.shell.git('checkout', commit, '--', os.path.basename(source[0]))
+            except GolemError:
+                if source[0].startswith(('http://', 'https://')):
+                    job.shell.wget(source[0])
+        job.run_hook('post-spec-checkout')
