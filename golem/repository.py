@@ -266,6 +266,9 @@ class Repository(IniConfig):
             null = '0' * 40
             for tag in self.git('for-each-ref', '--format', '%(refname) %(*objectname) %(objectname) %(taggerdate:raw) %(committerdate:raw)', 'refs/tags').stdout.splitlines():
                 data = tag.split()
+                if not (data[-2].isdigit() and data[-1][1:].isdigit()):
+                    # Severely broken tag 
+                    continue
                 tag, sha = data[:2]
                 ts = data[-2:]
                 ts = int(ts[0]) + (-1 if ts[1][0] == '-' else 1) * (3600 * int(ts[1][1:3]) + 60 * int(ts[1][3:]))
