@@ -81,9 +81,11 @@ class Master(Daemon):
         self.engine = golem.db.create_engine(db)
         golem.db.metadata.create_all(self.engine)
         self.read_repos()
+        gh = None
         for repo in self.repos.values():
-            if repo.reflogtype == 'github':
-                golem.repository.github()
+            if repo.reflogtype == 'github' and not gh:
+                self.logger.info("Verifying github login")
+                gh = golem.repository.github()
             if do_update:
                 self.logger.info("Updating %s" % repo.name)
                 repo.update()
