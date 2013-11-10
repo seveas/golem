@@ -20,9 +20,10 @@ import sqlalchemy.sql as sql
 class IniConfig(object):
     defaults = {}
     def __init__(self, config, section):
-        self.config = {}
-        for key in self.defaults:
-            self._set(key, copy(self.defaults[key]))
+        if not hasattr(self, 'config'):
+            self.config = {}
+            for key in self.defaults:
+                self._set(key, copy(self.defaults[key]))
         for key in config.options(section):
             self._set(key, config.get(section, key), config=True)
 
@@ -350,6 +351,8 @@ class Repository(IniConfig):
 class Action(IniConfig):
     defaults = {'branches': [], 'tags': [], 'requires': [], 'queue': None, 'when': 'push', 'backlog': 10, 'ttr': 120, 'publish': []}
     def __init__(self, config, section):
+        if config.has_option(section, 'inherit'):
+            IniConfig.__init__(self, config, config.get(section, 'inherit'))
         IniConfig.__init__(self, config, section)
         self.name = section[7:]
         self.logger = logging.getLogger('golem.action.' + self.name)
