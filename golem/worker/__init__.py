@@ -31,9 +31,6 @@ class Worker(Daemon):
     def process_job(self, job):
         job = Job(self, job)
         self.logger.info("Processing %s job for %s (%s@%s)" % (job.action, job.repo, job.ref, job.commit))
-        for f in ('ok', 'fail'):
-            if os.path.exists(os.path.join(job.artefact_path, 'finished_' + f)):
-                os.unlink(os.path.join(job.artefact_path, 'finished_' + f))
 
         if self.repo_sync:
             job.run_hook('pre-sync')
