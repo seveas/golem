@@ -12,6 +12,7 @@ commit = Table('commit', metadata,
     Column('repository', Integer, ForeignKey('repository.id')),
     Column('sha', String(40)),
     Column('ref', String(60)),
+    Column('submit_time', DateTime()),
     UniqueConstraint('repository', 'sha', 'ref')
 )
 
@@ -20,5 +21,16 @@ action = Table('action', metadata,
     Column('name', String(30)),
     Column('commit', Integer, ForeignKey('commit.id')),
     Column('status', String(10)),
+    Column('start_time', DateTime()),
+    Column('end_time', DateTime()),
+    Column('duration', Integer),
     UniqueConstraint('name', 'commit'),
+)
+
+artefact = Table('artefact', metadata,
+    Column('id', Integer, primary_key=True),
+    Column('filename', String(192)),
+    Column('action', Integer, ForeignKey('action.id')),
+    Column('sha1sum', String(40)),
+    UniqueConstraint('filename', 'action'),
 )

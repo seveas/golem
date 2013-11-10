@@ -6,7 +6,8 @@ import glob
 import json
 import re
 import time
-from golem import GolemError, GolemRetryLater, CmdLogger
+import random
+from golem import GolemError, GolemRetryLater, CmdLogger, now, toutctimestamp
 
 class Worker(Daemon):
     repo_sync = True
@@ -65,6 +66,7 @@ class Worker(Daemon):
 
 class Job(object):
     def __init__(self, worker, data):
+        self.start_time = now()
         self.hook = {}
         self.env = {}
         self.publish = []
@@ -160,7 +162,11 @@ class Job(object):
         if self.worker.rsync_password:
             args += ['--password-file', self.worker.rsync_password]
         self.shell.rsync(*args)
-        to_submit = {'repo': self.repo, 'ref': self.ref, 'old-sha1': self.old_commit, 'new-sha1': self.commit, 'why': 'action-done', 'action': self.action, 'result': self.result}
+        self.end_time = now()
+        to_submit = {'repo': self.repo, 'ref': self.ref, 'old-sha1': self.old_commit, 'new-sha1': self.commit,
+                     'why': 'action-done', 'action': self.action, 'result': self.result,
+                     'start_time': toutctimestamp(self.start_time), 'end_time': toutctimestamp(self.end_time),
+                     'duration': (self.end_time-self.start_time).total_seconds()}
         self.worker.bs.use(self.worker.submit_queue)
         self.worker.bs.put(json.dumps(to_submit), ttr=600)
 

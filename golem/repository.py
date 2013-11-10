@@ -1,9 +1,11 @@
 import collections
 from golem import ConfigParser
 from   copy import copy
+import datetime
 import getpass
 import github3
-from   golem import GolemError, CmdLogger
+from   golem import GolemError, CmdLogger, now
+import hashlib
 import json
 import logging
 import os
@@ -241,6 +243,7 @@ class Repository(IniConfig):
         _c = golem.db.commit
         _a = golem.db.action
         _r = golem.db.repository
+        _f = golem.db.artefact
 
         refs = {}
         tags = []
@@ -252,7 +255,15 @@ class Repository(IniConfig):
         if why == 'action-done':
             aid = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
                     sql.and_(_r.c.name == job['repo'], _c.c.ref==job['ref'], _c.c.sha==job['new-sha1'], _a.c.name==job['action']))).fetchone()[0]
-            db.execute(_a.update().values(status=job['result']).where(_a.c.id==aid))
+            db.execute(_a.update().values(status=job['result'], start_time=datetime.datetime.utcfromtimestamp(job['start_time']), 
+                                          end_time=datetime.datetime.utcfromtimestamp(job['end_time']), duration=job['duration']).where(_a.c.id==aid))
+            artefact_path = os.path.join(self.actions[job['action']].artefact_path, '%s@%s' % (job['ref'], job['new-sha1']))
+            for path, _, files in os.walk(artefact_path):
+                for file in files:
+                    if file != 'log':
+                        file = os.path.join(path, file)
+                        rfile = file[len(artefact_path)+len(os.sep):]
+                        db.execute(_f.insert().values(action=aid, filename=rfile, sha1sum=sha1(file)))
 
         if why == 'post-receive' and not refs:
             for head in self.git('for-each-ref', '--format', '%(refname)', 'refs/heads').stdout.splitlines():
@@ -306,7 +317,7 @@ class Repository(IniConfig):
 
                 for old_commit,commit in refs[ref][-(action.backlog+1):]:
                     cid = db.execute(_c.select().where(_c.c.repository==self.id).where(_c.c.ref==ref).where(_c.c.sha==commit)).fetchone()
-                    cid = cid.id if cid else db.execute(_c.insert().values(repository=self.id, ref=ref, sha=commit)).inserted_primary_key[0]
+                    cid = cid.id if cid else db.execute(_c.insert().values(repository=self.id, ref=ref, sha=commit, submit_time=now())).inserted_primary_key[0]
 
                     act = db.execute(_a.select().where(_a.c.commit==cid).where(_a.c.name==action.name)).fetchone()
                     if not act:
@@ -425,3 +436,13 @@ def cache(fnc, *args):
     if (fnc,) + args not in _cache:
         _cache[(fnc,) + args] = fnc(*args)
     return _cache[(fnc,) + args]
+
+def sha1(file):
+    sha = hashlib.new('sha1')
+    with open(file) as fd:
+        while True:
+            data = fd.read(4096)
+            if not data:
+                break
+            sha.update(data)
+    return sha.hexdigest()

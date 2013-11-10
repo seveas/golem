@@ -1,3 +1,5 @@
+import datetime
+
 class GolemError(Exception): pass
 class GolemRetryLater(Exception): pass
 
@@ -49,3 +51,10 @@ class ConfigParser(CP):
 
         self._defaults = _defaults
         return CP.get(self, sections[-1],option, raw, None)
+
+def now():
+    return datetime.datetime.utcnow()
+epoch = datetime.datetime.utcfromtimestamp(0)
+
+def toutctimestamp(dt):
+    return (dt - epoch).total_seconds()
