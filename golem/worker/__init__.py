@@ -1,5 +1,6 @@
 from golem.daemon import Daemon
 from collections import defaultdict
+import keyword
 import whelk
 import os
 import glob
@@ -30,7 +31,7 @@ class Worker(Daemon):
 
     def process_job(self, job):
         job = Job(self, job)
-        self.logger.info("Processing %s job for %s (%s@%s)" % (job.action, job.repo, job.ref, job.commit))
+        self.logger.info("Processing %s job for %s (%s@%s)" % (job.action, job.repo, job.ref, job.sha1))
 
         if self.repo_sync:
             job.run_hook('pre-sync')
@@ -39,7 +40,7 @@ class Worker(Daemon):
         os.chdir(job.work_path)
         if self.repo_checkout:
             job.run_hook('pre-checkout')
-            job.checkout(job.commit)
+            job.checkout(job.sha1)
             job.run_hook('post-checkout')
 
         try:
@@ -72,13 +73,15 @@ class Job(object):
 
         data = json.loads(data.body)
         for key, value in data.items():
+            if keyword.iskeyword(key):
+                key += '_'
             setattr(self, key, value)
 
         self.env.update(os.environ)
 
         self.repo_path = os.path.join(worker.repo_dir, self.repo, self.repo + '.git')
-        self.work_path = os.path.join(worker.repo_dir, self.repo, 'work', self.action, '%s@%s' % (self.ref, self.commit))
-        self.artefact_path = os.path.join(worker.repo_dir, self.repo, 'artefacts', self.action, '%s@%s' % (self.ref, self.commit))
+        self.work_path = os.path.join(worker.repo_dir, self.repo, 'work', self.action, '%s@%s' % (self.ref, self.sha1))
+        self.artefact_path = os.path.join(worker.repo_dir, self.repo, 'artefacts', self.action, '%s@%s' % (self.ref, self.sha1))
         self.env['GIT_DIR'] = self.repo_path
         self.env['GIT_WORK_TREE'] = self.work_path
 
@@ -120,7 +123,7 @@ class Job(object):
                         command = []
                     cmd = args.pop(0)
                     for idx, arg in enumerate(args):
-                        arg = arg.replace('$commit', self.commit)
+                        arg = arg.replace('$commit', self.sha1)
                         args[idx] = arg
                     if len(args) >= 2 and args[-2] == '>':
                         kwargs['stdout'] = open(os.path.join(self.work_path, args[-1]), 'w')
@@ -135,17 +138,17 @@ class Job(object):
                 args = command[1:]
                 command = command[0]
                 for idx, arg in enumerate(args):
-                    arg = arg.replace('$commit', self.commit)
+                    arg = arg.replace('$commit', self.sha1)
                     args[idx] = arg
                 if len(args) >= 2 and args[-2] == '>':
                     kwargs['stdout'] = open(os.path.join(self.work_path, args[-1]), 'w')
                     args = args[:-2]
                 self.shell[command](*args, **kwargs)
 
-    def checkout(self, commit):
+    def checkout(self, sha1):
         self.shell.git('clean', '-dxf')
         self.shell.git('reset', '--hard')
-        self.shell.git('checkout', commit)
+        self.shell.git('checkout', sha1)
 
     def publish_results(self):
         for glb in getattr(self, 'publish', []):
@@ -153,14 +156,14 @@ class Job(object):
                 self.logger.info("Adding artefact %s" % file.replace(self.work_path, ''))
                 os.rename(file, os.path.join(self.artefact_path, os.path.basename(file)))
         local = self.artefact_path + os.sep
-        remote = '/'.join([self.worker.rsync_root, self.repo, 'artefacts', self.action, '%s@%s' % (self.ref, self.commit)]) + os.sep
+        remote = '/'.join([self.worker.rsync_root, self.repo, 'artefacts', self.action, '%s@%s' % (self.ref, self.sha1)]) + os.sep
         self.logger.info("Publishing %s => %s" % (local, remote))
         args = ['-av', local, remote]
         if self.worker.rsync_password:
             args += ['--password-file', self.worker.rsync_password]
         self.shell.rsync(*args)
         self.end_time = now()
-        to_submit = {'repo': self.repo, 'ref': self.ref, 'old-sha1': self.old_commit, 'new-sha1': self.commit,
+        to_submit = {'repo': self.repo, 'ref': self.ref, 'prev_sha1': self.prev_sha1, 'sha1': self.sha1,
                      'why': 'action-done', 'action': self.action, 'result': self.result,
                      'start_time': toutctimestamp(self.start_time), 'end_time': toutctimestamp(self.end_time),
                      'duration': (self.end_time-self.start_time).total_seconds()}
@@ -171,7 +174,7 @@ class Job(object):
         local = '.'
         if action.startswith('action:'):
             action = action[7:]
-        remote = os.path.join(self.worker.rsync_root, self.repo, 'artefacts', action, '%s@%s' % (self.ref, self.commit), filename)
+        remote = os.path.join(self.worker.rsync_root, self.repo, 'artefacts', action, '%s@%s' % (self.ref, self.sha1), filename)
 
         args = ['-a', '--list-only', remote]
         if self.worker.rsync_password:

@@ -28,7 +28,7 @@ Usage:
   golem [--config=<config>] --master [--daemon] [--instance=<instance>] [--update-on-startup]
   golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>] [--one]
   golem [--config=<config>] --notifier=<worker> [--daemon] [--instance=<instance>] [--one]
-  golem [--config=<config>] --submit [<repo> [<ref> <old-sha1> <new-sha1>]]
+  golem [--config=<config>] --submit [<repo> [<ref> <prev-sha1> <sha1>]]
   golem [--config=<config>] --login=<service>
 
 Options:
@@ -101,11 +101,11 @@ if opts['--submit']:
                 otps['<repo>'] = opts['<repo>'][:-4]
     to_submit = []
     if opts['<ref>'] or sys.stdin.isatty():
-        to_submit.append({'repo': opts['<repo>'], 'ref': opts['<ref>'], 'old-sha1': opts['<old-sha1>'], 'new-sha1': opts['<new-sha1>'], 'why': 'post-receive'})
+        to_submit.append({'repo': opts['<repo>'], 'ref': opts['<ref>'], 'prev_sha1': opts['<prev-sha1>'], 'sha1': opts['<sha1>'], 'why': 'post-receive'})
     if not sys.stdin.isatty():
         for line in sys.stdin.readlines():
-            old_sha1, new_sha1, ref = line.strip().split()
-            to_submit.append({'repo': opts['<repo>'], 'ref': ref, 'old-sha1': old-sha1, 'new-sha1': new-sha1, 'why': 'post-receive'})
+            prev_sha1, sha1, ref = line.strip().split()
+            to_submit.append({'repo': opts['<repo>'], 'ref': ref, 'prev_sha1': prev_sha1, 'sha1': sha1, 'why': 'post-receive'})
     bs = beanstalkc.Connection(bs_host, bs_port)
     bs.use(bs_queue)
     for thing in to_submit:

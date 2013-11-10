@@ -14,7 +14,7 @@ class Daemon(Worker):
         files = job.fetch_artefacts(job.requires[0], job.tarball)
         files = [('sdist', 'source', files[0])]
 
-        job.shell.git('checkout', job.commit, '--', 'setup.py')
+        job.shell.git('checkout', job.sha1, '--', 'setup.py')
         Command.announce = self._log
         dist = run_setup('setup.py')
         dist.run_command('register')

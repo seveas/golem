@@ -42,7 +42,7 @@ class Daemon(Worker):
         tree = repo.create_tree(blobs)
         if tree.sha != parent.commit.tree.sha:
             self.logger.info("Creating new commit")
-            commit = repo.create_commit("Automatic update from commit %s" % job.commit,
+            commit = repo.create_commit("Automatic update from commit %s" % job.sha1,
                 tree=tree.sha, parents=[parent.sha],
                 author={'name': 'Golem', 'email': 'golem@seveas.net'})
             branch.update(commit.sha)

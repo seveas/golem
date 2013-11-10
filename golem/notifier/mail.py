@@ -40,8 +40,8 @@ class Daemon(Notifier):
             duration = ' and '.join(dur)
         else:
             duration = '%s, %s and %s' % dur
-        message['Subject'] = 'Action %s for %s %s@%s %s in %s' % (job.action, job.repo, job.ref, getattr(job, 'new-sha1'), result, duration)
-        message['From'] = getattr(job, 'from')
+        message['Subject'] = 'Action %s for %s %s@%s %s in %s' % (job.action, job.repo, job.ref, job.sha1, result, duration)
+        message['From'] = job.from_
         message['To'] = job.to
         message['Message-Id'] = '<%s@golem-ci>' % uuid.uuid4().hex
         return message

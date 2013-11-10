@@ -38,7 +38,7 @@ class Daemon(Worker):
                 $''', version_line, re.VERBOSE).groups()
 
             job.run_hook('pre-version-mangle')
-            job.version_script.append(job.commit)
+            job.version_script.append(job.sha1)
             res = job.shell[job.version_script[0]](*job.version_script[1:])
             gitversion = res.stdout.strip()
 
@@ -47,7 +47,7 @@ class Daemon(Worker):
                     v = '%s:%s-1' % (epoch, gitversion)
                 else:
                     v = '%s-1' % gitversion
-                job.shell.dch('-v', v, '-u', 'low', '--distribution', dist, "Automated rebuild from git commit %s" % job.commit)
+                job.shell.dch('-v', v, '-u', 'low', '--distribution', dist, "Automated rebuild from git commit %s" % job.sha1)
             job.run_hook('post-version-mangle')
 
         # Do we have debian/* tags?
@@ -71,14 +71,14 @@ class Daemon(Worker):
             # - If this is the first commit on the debian branch, and has only one parent: it's the start of the debian branch
             # - Walk forward in history until encountering another merge with master (one parent has no debian dir), we want the one just before that
             commits = job.shell.git('rev-list', '--parents', '--ancestry-path', 
-                                    '--first-parent', '%s..%s' % (job.commit, job.debian_branch))
+                                    '--first-parent', '%s..%s' % (job.sha1, job.debian_branch))
             commits = [x.split() for x in commits.stdout.splitlines()]
             commits.reverse() # Let's walk forward in time
             if not commits:
                 # No commit added yet
                 # Try without --first-parent to see if there is *any* path
                 commits = job.shell.git('rev-list', '--parents', '--ancestry-path', 
-                                        '%s..%s' % (job.commit, job.debian_branch))
+                                        '%s..%s' % (job.sha1, job.debian_branch))
                 if commits.stdout.strip():
                     raise GolemError("First commit after %s is not a merge into the %s branch (1)" % (job.ref, job.debian_branch))
                 raise GolemRetryLater()

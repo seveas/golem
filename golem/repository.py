@@ -8,6 +8,7 @@ import github3
 from   golem import GolemError, CmdLogger, now
 import hashlib
 import json
+import keyword
 import logging
 import os
 import re
@@ -38,6 +39,8 @@ class IniConfig(object):
                     val = val[0]
         if '.' in key:
             key1, key2 = key.split('.', 1)
+            if keyword.iskeyword(key1):
+                key1 += '_'
             if not hasattr(self, key1):
                 setattr(self, key1, {})
             getattr(self, key1)[key2] = val
@@ -46,6 +49,8 @@ class IniConfig(object):
                     self.config[key1] = {}
                 self.config[key1][key2] = val
         else:
+            if keyword.iskeyword(key):
+                key += '_'
             setattr(self, key, val)
             if config:
                 self.config[key] = val
@@ -210,7 +215,7 @@ class Repository(IniConfig):
                 if event.type != 'PushEvent':
                     continue
                 # Format:
-                # old_sha1 new_sha1 Author Name <author@mail> timestamp +TZOFF push
+                # prev_sha1 sha1 Author Name <author@mail> timestamp +TZOFF push
                 push = (
                     event.payload.get('before',BOGUS_SHA1), # Older events don't have 'before'
                     event.payload['head'],
@@ -256,22 +261,22 @@ class Repository(IniConfig):
         refs = {}
         tags = []
         if ref and ref.startswith(('refs/heads', 'refs/tags')):
-            refs[ref] = [(job['old-sha1'], job['new-sha1'])]
+            refs[ref] = [(job['prev_sha1'], job['sha1'])]
         if ref and ref.startswith('refs/tags'):
             tags = [(ref, 0)]
 
         if why == 'action-done':
             aid = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
-                    sql.and_(_r.c.name == job['repo'], _c.c.ref==job['ref'], _c.c.sha==job['new-sha1'], _a.c.name==job['action']))).fetchone()[0]
+                    sql.and_(_r.c.name == job['repo'], _c.c.ref==job['ref'], _c.c.sha1==job['sha1'], _a.c.name==job['action']))).fetchone()[0]
             db.execute(_a.update().values(status=job['result'], start_time=datetime.datetime.utcfromtimestamp(job['start_time']), 
                                           end_time=datetime.datetime.utcfromtimestamp(job['end_time']), duration=job['duration']).where(_a.c.id==aid))
-            artefact_path = os.path.join(self.actions[job['action']].artefact_path, '%s@%s' % (job['ref'], job['new-sha1']))
+            artefact_path = os.path.join(self.actions[job['action']].artefact_path, '%s@%s' % (job['ref'], job['sha1']))
             for path, _, files in os.walk(artefact_path):
                 for file in files:
                     if file != 'log':
                         file = os.path.join(path, file)
                         rfile = file[len(artefact_path)+len(os.sep):]
-                        db.execute(_f.insert().values(action=aid, filename=rfile, sha1sum=sha1(file)))
+                        db.execute(_f.insert().values(action=aid, filename=rfile, sha1=sha1_file(file)))
             for nf in self.notifiers.values():
                 for what in nf.process:
                     if fnmatch.fnmatch('action:' + job['action'], what):
@@ -327,10 +332,10 @@ class Repository(IniConfig):
                 if not handle:
                     continue
 
-                for old_commit,commit in refs[ref][-(action.backlog+1):]:
-                    cid = db.execute(_c.select().where(_c.c.repository==self.id).where(_c.c.ref==ref).where(_c.c.sha==commit)).fetchone()
-                    cid = cid.id if cid else db.execute(_c.insert().values(repository=self.id, ref=ref, sha=commit, submit_time=now())).inserted_primary_key[0]
-
+                for prev_sha1, sha1 in refs[ref][-(action.backlog+1):]:
+                    cid = db.execute(_c.select().where(_c.c.repository==self.id).where(_c.c.ref==ref).where(_c.c.sha1==sha1)).fetchone()
+                    cid = cid.id if cid else db.execute(_c.insert().values(repository=self.id, ref=ref, sha1=sha1, prev_sha1=prev_sha1,
+                                                        submit_time=now())).inserted_primary_key[0]
                     act = db.execute(_a.select().where(_a.c.commit==cid).where(_a.c.name==action.name)).fetchone()
                     if not act:
                         db.execute(_a.insert().values(commit=cid, name=action.name, status='new'))
@@ -345,10 +350,10 @@ class Repository(IniConfig):
 
                     if act.status == 'new':
                         db.execute(_a.update().where(_a.c.id==act.id).values(status='scheduled'))
-                        action.schedule(ref, old_commit, commit)
-                    elif job['old-sha1'] == 'reschedule' and act.status in ('fail', 'retry'):
+                        action.schedule(ref, prev_sha1, sha1)
+                    elif job['prev_sha1'] == 'reschedule' and act.status in ('fail', 'retry'):
                         db.execute(_a.update().where(_a.c.id==act.id).values(status='scheduled'))
-                        action.schedule(ref, old_commit, commit)
+                        action.schedule(ref, prev_sha1, sha1)
 
     def git(self, *args, **kwargs):
         res = self.shell.git(*args, **kwargs)
@@ -396,10 +401,10 @@ class Action(IniConfig):
         if not self.queue:
             raise ValueError("No queue specified")
 
-    def schedule(self, ref, old_commit, commit):
-        self.logger.info("Scheduling %s for %s@%s" % (self.name, ref, commit))
+    def schedule(self, ref, prev_sha1, sha1):
+        self.logger.info("Scheduling %s for %s@%s" % (self.name, ref, sha1))
         self.daemon.bs.use(self.queue)
-        data = {'repo': self.repo_name, 'ref': ref, 'old_commit': old_commit, 'commit': commit, 'action': self.name}
+        data = {'repo': self.repo_name, 'ref': ref, 'prev_sha1': prev_sha1, 'sha1': sha1, 'action': self.name}
         data.update(self.config)
         if 'tags' in data:
             data['tags'] = [x.pattern if hasattr(x, 'pattern') else x for x in data['tags']]
@@ -407,8 +412,8 @@ class Action(IniConfig):
             data['branches'] = [x.pattern if hasattr(x, 'pattern') else x for x in data['branches']]
 
         self.daemon.bs.put(json.dumps(data), ttr=self.ttr)
-        if commit:
-            ref += '@' + commit
+        if sha1:
+            ref += '@' + sha1
         if not os.path.exists(os.path.join(self.artefact_path, ref)):
             os.makedirs(os.path.join(self.artefact_path, ref))
 
@@ -426,7 +431,7 @@ class Notifier(IniConfig):
             raise ValueError("No queue specified")
 
     def schedule(self, job):
-        self.logger.info("Scheduling %s notifications for %s@%s" % (job['action'], job['ref'], job['new-sha1']))
+        self.logger.info("Scheduling %s notifications for %s@%s" % (job['action'], job['ref'], job['sha1']))
         self.daemon.bs.use(self.queue)
         data = job.copy()
         data.update(self.config)
@@ -471,7 +476,7 @@ def cache(fnc, *args):
         _cache[(fnc,) + args] = fnc(*args)
     return _cache[(fnc,) + args]
 
-def sha1(file):
+def sha1_file(file):
     sha = hashlib.new('sha1')
     with open(file) as fd:
         while True:
