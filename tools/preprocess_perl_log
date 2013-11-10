@@ -1,0 +1,27 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+my $log;
+{ local $/ = undef; $log = <STDIN>; }
+
+# First we remove the git output
+$log =~ s/.*HEAD is now at .*?\n//s;
+
+# If configure succeeded, it's output is irrelevant
+if($log =~ /Now you must run 'make'/) {
+    $log =~ s/.*Now you must run 'make'.*?\n//s;
+}
+
+# If make succeeds strip its output
+if($log =~ /TESTFILE=harness/) {
+    $log =~ s/.*TESTFILE=harness.*?\n//s;
+    $log =~ s/^(.*)(Test Summary.*)/$2\n$1/s;
+}
+# Otherwise stript to the last succesful make
+else {
+    $log =~ s/.*\n(?=Creating|Running|make.*Entering)//s;
+}
+
+print $log;

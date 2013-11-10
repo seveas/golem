@@ -27,6 +27,7 @@ usage = """Golem queueing daemon
 Usage:
   golem [--config=<config>] --master [--daemon] [--instance=<instance>] [--update-on-startup]
   golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>] [--one]
+  golem [--config=<config>] --notifier=<worker> [--daemon] [--instance=<instance>] [--one]
   golem [--config=<config>] --submit [<repo> [<ref> <old-sha1> <new-sha1>]]
   golem [--config=<config>] --login=<service>
 
@@ -36,6 +37,7 @@ Options:
   --daemon                  Run as a daemon in the background
   --master                  Run the scheduler. When running instance 1, start the helpers too
   --worker=<worker>         Run the specified worker instead of the master
+  --notifier=<worker>       Run the specified notifier instead of the master
   --instance=<instance>     Start a numbered instance of worker/master
   --update-on-startup       Do a git fetch of all repositories on startup
   --one                     Process one update and exit
@@ -158,6 +160,34 @@ if opts['--worker']:
 
     daemon = __import__(module)
     daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, bs_queue, rsync_root, rsync_hardlink, rsync_password, opts['--one'])
+
+elif opts['--notifier']:
+    name = opts['--notifier']
+    parser._defaults['repos'] = '/var/lib/golem/workers'
+    parser._defaults['queue'] = 'golem-%s' % name
+    parser._defaults['logger'] = 'golem.notifier.%s' % name
+    parser._defaults['module'] = 'golem.notifier.%s' % name.replace('-', '_')
+    prctl.set_name("golem %s" % name)
+    prctl.set_proctitle(' '.join(sys.argv))
+    change_logfile(opts['--notifier'], opts['--instance'])
+
+    logger = parser.get(['notifier:' + name, 'notifier'], 'logger')
+    repos = parser.get(['notifier:' + name, 'notifier'], 'repos')
+    wk_queue = parser.get(['notifier:' + name, 'notifier'], 'queue')
+    module = parser.get(['notifier:' + name, 'notifier'], 'module')
+
+    lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
+    if not os.path.exists(os.path.dirname(lockfile)):
+        os.makedirs(os.path.dirname(lockfile))
+    lockfd = open(lockfile, 'a+')
+    try:
+        fcntl.lockf(lockfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        print >>sys.stderr, "Notifier is already running"
+        sys.exit(1)
+
+    daemon = __import__(module)
+    daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, opts['--one'])
 else:
     prctl.set_name("golemd")
     prctl.set_proctitle(' '.join(sys.argv))

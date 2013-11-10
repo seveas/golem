@@ -2,6 +2,7 @@ import collections
 from golem import ConfigParser
 from   copy import copy
 import datetime
+import fnmatch
 import getpass
 import github3
 from   golem import GolemError, CmdLogger, now
@@ -50,7 +51,7 @@ class IniConfig(object):
                 self.config[key] = val
 
 class Repository(IniConfig):
-    defaults = {'upstream': None, 'reflogtype': None, 'actions': {}, 'remote': {}}
+    defaults = {'upstream': None, 'reflogtype': None, 'actions': {}, 'notifiers': {}, 'remote': {}}
     def __init__(self, daemon, config, db):
         config = ConfigParser(config)
         IniConfig.__init__(self, config,    'repo')
@@ -95,6 +96,12 @@ class Repository(IniConfig):
                 self.actions[action].artefact_path = os.path.join(self.artefact_path, action)
                 self.actions[action].daemon = daemon
                 self.actions[action].repo_name = self.name
+            elif section.startswith('notify:'):
+                nf = section[7:]
+                self.logger.info("  Adding notifier %s" % nf)
+                self.notifiers[nf] = Notifier(config, section)
+                self.notifiers[nf].daemon = daemon
+                self.notifiers[nf].repo_name = self.name
 
         changed = True
         while changed:
@@ -265,6 +272,10 @@ class Repository(IniConfig):
                         file = os.path.join(path, file)
                         rfile = file[len(artefact_path)+len(os.sep):]
                         db.execute(_f.insert().values(action=aid, filename=rfile, sha1sum=sha1(file)))
+            for nf in self.notifiers.values():
+                for what in nf.process:
+                    if fnmatch.fnmatch('action:' + job['action'], what):
+                        nf.schedule(job)
 
         if why == 'post-receive' and not refs:
             for head in self.git('for-each-ref', '--format', '%(refname)', 'refs/heads').stdout.splitlines():
@@ -400,6 +411,26 @@ class Action(IniConfig):
             ref += '@' + commit
         if not os.path.exists(os.path.join(self.artefact_path, ref)):
             os.makedirs(os.path.join(self.artefact_path, ref))
+
+class Notifier(IniConfig):
+    defaults = {'process': [], 'queue': None, 'ttr': 120}
+    def __init__(self, config, section):
+        if config.has_option(section, 'inherit'):
+            IniConfig.__init__(self, config, config.get(section, 'inherit'))
+        IniConfig.__init__(self, config, section)
+        self.name = section[7:]
+        self.logger = logging.getLogger('golem.notifier.' + self.name)
+        if isinstance(self.process, basestring):
+            self.process = self.config['process'] = [self.process]
+        if not self.queue:
+            raise ValueError("No queue specified")
+
+    def schedule(self, job):
+        self.logger.info("Scheduling %s notifications for %s@%s" % (job['action'], job['ref'], job['new-sha1']))
+        self.daemon.bs.use(self.queue)
+        data = job.copy()
+        data.update(self.config)
+        self.daemon.bs.put(json.dumps(data), ttr=self.ttr)
 
 # Copied from git-hub
 def github(try_login=False):
