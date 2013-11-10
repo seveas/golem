@@ -7,10 +7,11 @@ import os
 import whelk
 
 class Notifier(Daemon):
-    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, do_one):
+    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, do_one, config):
         super(Notifier, self).__init__(logger, bs_host, bs_port, bs_queue)
         self.repo_dir = repo_dir
         self.do_one = do_one
+        self.config = config
 
     def process_job(self, job):
         job = Job(self, job)

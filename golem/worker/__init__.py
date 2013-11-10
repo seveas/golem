@@ -14,7 +14,7 @@ class Worker(Daemon):
     repo_sync = True
     repo_checkout = True
 
-    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, submit_queue, rsync_root, rsync_hardlink, rsync_password, do_one):
+    def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, submit_queue, rsync_root, rsync_hardlink, rsync_password, do_one, config):
         super(Worker, self).__init__(logger, bs_host, bs_port, bs_queue)
         self.repo_dir = repo_dir
         self.rsync_root = rsync_root
@@ -25,6 +25,7 @@ class Worker(Daemon):
         if not os.path.exists(self.repo_dir):
             os.makedirs(self.repo_dir)
         self.repo_checkout = self.repo_checkout and self.repo_sync
+        self.config = config
 
     def setup(self, job):
         pass

@@ -53,7 +53,7 @@ defaults = {
     'rsync_root':       '',
     'rsync_password':   '',
     'rsync_hardlink':   '',
-    'instances':        1,
+    'instances':        '1',
     'db':               '',
 }
 
@@ -147,6 +147,9 @@ if opts['--worker']:
     rsync_password = parser.get(['worker:' + name, 'worker'], 'rsync_password')
     rsync_hardlink = parser.get(['worker:' + name, 'worker'], 'rsync_hardlink')
     module = parser.get(['worker:' + name, 'worker'], 'module')
+    config = {}
+    if parser.has_section('worker:' + name):
+        config = dict([(x, parser.get('worker:' + name, x)) for x in parser.options('worker:' + name)])
 
     lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
     if not os.path.exists(os.path.dirname(lockfile)):
@@ -159,7 +162,7 @@ if opts['--worker']:
         sys.exit(1)
 
     daemon = __import__(module)
-    daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, bs_queue, rsync_root, rsync_hardlink, rsync_password, opts['--one'])
+    daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, bs_queue, rsync_root, rsync_hardlink, rsync_password, opts['--one'], config)
 
 elif opts['--notifier']:
     name = opts['--notifier']
@@ -175,6 +178,9 @@ elif opts['--notifier']:
     repos = parser.get(['notifier:' + name, 'notifier'], 'repos')
     wk_queue = parser.get(['notifier:' + name, 'notifier'], 'queue')
     module = parser.get(['notifier:' + name, 'notifier'], 'module')
+    config = {}
+    if parser.has_section('notifier:' + name):
+        config = dict([(x, parser.get('notifier:' + name, x)) for x in parser.options('notifier:' + name)])
 
     lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
     if not os.path.exists(os.path.dirname(lockfile)):
@@ -187,7 +193,7 @@ elif opts['--notifier']:
         sys.exit(1)
 
     daemon = __import__(module)
-    daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, opts['--one'])
+    daemon = sys.modules[module].Daemon(logger, bs_host, bs_port, wk_queue, repos, opts['--one'], config)
 else:
     prctl.set_name("golemd")
     prctl.set_proctitle(' '.join(sys.argv))

@@ -14,7 +14,7 @@ commit = Table('commit', metadata,
     Column('prev_sha1', String(40)),
     Column('ref', String(60)),
     Column('submit_time', DateTime()),
-    UniqueConstraint('repository', 'sha', 'ref')
+    UniqueConstraint('repository', 'sha1', 'ref')
 )
 
 action = Table('action', metadata,
