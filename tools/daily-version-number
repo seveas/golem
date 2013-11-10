@@ -1,0 +1,50 @@
+#!/usr/bin/python
+
+from whelk import shell
+import docopt
+import datetime
+
+usage = """Generate a version number for daily builds of packages
+
+Usage:
+  daily-version-number (--rpm | --deb) [<commitish>]
+"""
+
+opts = docopt.docopt(usage)
+commit = opts.get('<commitish>', 'HEAD')
+version = shell.git('describe', commit).stdout.strip()
+
+# Version is in the format <tag>-<commits-since-tag>-g<sha1>
+# We want <tag>-<datetime>-<sha1>
+tag, _, sha = version.rsplit('-', 2)
+sha = sha[1:]
+if tag.startswith('v'):
+    tag = tag[1:]
+
+# Added complication: rc tags
+if '-rc' in tag:
+    if opts['--deb']:
+        tag = tag.replace('-rc', '~rc')
+    else:
+        # RPM doesn't understand ~ syntax, so we have to fake a version number
+        # 1.8.2-rc1 -> 1.8.1.999
+        # 1.8-rc1 -> 1.7.999 
+        # 1.8.0-rc1 -> 1.7.999
+        # 1.0.0-rc1 -> 0.999
+        oldver = [int(x) for x in tag[:tag.find('-rc')].split('.')]
+        tag = tag.replace('-rc', 'rc')
+        while oldver[-2:] == [0,0]:
+            oldver = oldver[:-1]
+        if oldver[-1] == 0:
+            oldver[-1] = 999
+            oldver[-2] -= 1
+        else:
+            oldver[-1] -= 1
+            oldver.append(999)
+        tag = '%s+%s' % ('.'.join([str(x) for x in oldver]), tag)
+
+if '-' in tag:
+    raise ValueError("Can't handle tag %s" % tag)
+
+dt = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+print '%s+%s' % (tag, dt)
