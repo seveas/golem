@@ -17,8 +17,10 @@ class Daemon(Worker):
         if job.configure:
             job.run_hook('pre-configure')
             job.shell['./configure'](*job.configure_args)
+            job.run_hook('post-configure')
         if job.make:
             job.run_hook('pre-make')
             job.shell.make(*job.make_args)
+            job.run_hook('post-make')
         job.run_hook('pre-test')
         job.shell.make(*job.make_test_args)
