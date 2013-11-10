@@ -146,7 +146,7 @@ if opts['--worker']:
     rsync_root = parser.get(['worker:' + name, 'worker'], 'rsync_root')
     rsync_password = parser.get(['worker:' + name, 'worker'], 'rsync_password')
     rsync_hardlink = parser.get(['worker:' + name, 'worker'], 'rsync_hardlink')
-    module = parser.get('worker', 'module')
+    module = parser.get(['worker:' + name, 'worker'], 'module')
 
     lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
     if not os.path.exists(os.path.dirname(lockfile)):
