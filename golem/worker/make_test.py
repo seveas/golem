@@ -4,7 +4,7 @@ class Daemon(Worker):
     def setup(self, job):
         for what in ('configure', 'make', 'make_test'):
             args = getattr(job, '%s_args' % what, [])
-            if isinstance(args, str):
+            if isinstance(args, basestring):
                 args = [args]
             want = args or getattr(job, what, 'no').lower() in ('1', 'true', 'yes')
             setattr(job, what, want)
