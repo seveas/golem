@@ -407,7 +407,7 @@ class Repository(IniConfig):
         return '<Repository %s at %s>' % (self.name, self.path)
 
 class Action(IniConfig):
-    defaults = {'branches': [], 'tags': [], 'requires': [], 'queue': None, 'when': 'push', 'backlog': 10, 'ttr': 120, 'publish': []}
+    defaults = {'branches': [], 'tags': [], 'requires': [], 'queue': None, 'backlog': 10, 'ttr': 120, 'publish': []}
     def __init__(self, config, section):
         if config.has_option(section, 'inherit'):
             IniConfig.__init__(self, config, config.get(section, 'inherit'))
