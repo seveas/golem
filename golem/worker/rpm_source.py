@@ -89,10 +89,11 @@ class Daemon(Worker):
     def checkout(self, commit, job):
         job.run_hook('pre-spec-checkout')
         job.shell.git('checkout', commit, '--', job.specfile)
+        job.run_hook('post-spec-checkout')
         for source in rpm.ts().parseSpec(job.specfile).sources:
             try:
                 job.shell.git('checkout', commit, '--', os.path.basename(source[0]))
             except GolemError:
                 if source[0].startswith(('http://', 'https://')):
                     job.shell.wget(source[0])
-        job.run_hook('post-spec-checkout')
+        job.run_hook('post-source-download')
