@@ -29,6 +29,7 @@ Usage:
   golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>] [--one]
   golem [--config=<config>] --notifier=<worker> [--daemon] [--instance=<instance>] [--one]
   golem [--config=<config>] --submit [<repo> [<ref> <prev-sha1> <sha1>]]
+  golem [--config=<config>] --reschedule <repo> <ref> [<sha1> [<action>]]
   golem [--config=<config>] --login=<service>
 
 Options:
@@ -111,6 +112,14 @@ if opts['--submit']:
     for thing in to_submit:
         bs.put(json.dumps(thing), ttr=600)
         print "Notified golem of the update to %s" % thing['repo']
+    sys.exit(0)
+
+if opts['--reschedule']:
+    bs = beanstalkc.Connection(bs_host, bs_port)
+    bs.use(bs_queue)
+    thing = {'repo': opts['<repo>'], 'ref': opts['<ref>'], 'sha1': opts['<sha1>'], 'action': opts['<action>'], 'why': 'reschedule'}
+    bs.put(json.dumps(thing), ttr=600)
+    print "Queued the reschedule"
     sys.exit(0)
 
 # Now we start daemons

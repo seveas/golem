@@ -14,6 +14,7 @@ import os
 import re
 import requests
 import shlex
+import shutil
 import socket
 import traceback
 import whelk
@@ -266,6 +267,19 @@ class Repository(IniConfig):
 
         refs = {}
         tags = []
+        if why == 'reschedule':
+            if job['sha1']:
+                c = db.execute(_c.select().where(sql.and_(_c.c.ref==job['ref'], _c.c.sha1==job['sha1']))).fetchone()
+                if not c:
+                    self.logger.error("Commit %s for ref %s cannot be rescheduled, it does not exist" % (job['sha1'], job['ref']))
+                    return
+            else:
+                c = db.execute(_c.select().where(_c.c.ref==job['ref']).desc('submit_time').limit(1)).fetchone()
+                if not c:
+                    self.logger.error("Cannot reschedule actions for ref %s, no commits were processed yet" % job['ref'])
+                    return
+            job['prev_sha1'], job['sha1'] = c.prev_sha1, c.sha1
+
         if ref and ref.startswith(('refs/heads', 'refs/tags')):
             refs[ref] = [(job['prev_sha1'], job['sha1'])]
         if ref and ref.startswith('refs/tags'):
@@ -308,6 +322,29 @@ class Repository(IniConfig):
                 ts = int(ts[0]) + (-1 if ts[1][0] == '-' else 1) * (3600 * int(ts[1][1:3]) + 60 * int(ts[1][3:]))
                 refs[tag] = [(null, sha)]
                 tags.append((tag, ts))
+
+        if why == 'reschedule':
+            # Set actions back to 'new'
+            # Set dependent actions back to 'new'
+            # Delete files from artefacts
+            if job['action']:
+                actions = [job['action']]
+            else:
+                actions = [x.name for x in db.execute(_a.select().where(sql.and_(_a.c.commit==c.id, _a.c.status=='retry'))).fetchall()]
+            added = True
+            while added:
+                added = False
+                for aname, action in self.actions.items():
+                    if aname in actions:
+                        continue
+                    for act in actions:
+                        if 'action:' + act in action.requires:
+                            added = True
+                            actions.append(aname)
+                            break
+            for action in actions:
+                self.actions[action].clean(job['ref'], job['sha1'])
+            db.execute(_a.update().values(status='new').where(sql.and_(_a.c.commit==c.id, _a.c.name.in_(actions))))
 
         tags.sort(key=lambda x: x[1], reverse=True)
 
@@ -355,9 +392,6 @@ class Repository(IniConfig):
                             continue
 
                     if act.status == 'new':
-                        db.execute(_a.update().where(_a.c.id==act.id).values(status='scheduled'))
-                        action.schedule(ref, prev_sha1, sha1)
-                    elif job['prev_sha1'] == 'reschedule' and act.status in ('fail', 'retry'):
                         db.execute(_a.update().where(_a.c.id==act.id).values(status='scheduled'))
                         action.schedule(ref, prev_sha1, sha1)
 
@@ -422,6 +456,11 @@ class Action(IniConfig):
             ref += '@' + sha1
         if not os.path.exists(os.path.join(self.artefact_path, ref)):
             os.makedirs(os.path.join(self.artefact_path, ref))
+
+    def clean(self, ref, sha1):
+        ref += '@' + sha1
+        if os.path.exists(os.path.join(self.artefact_path, ref)):
+            shutil.rmtree(os.path.join(self.artefact_path, ref))
 
 class Notifier(IniConfig):
     defaults = {'process': [], 'queue': None, 'ttr': 120}

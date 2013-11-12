@@ -6,6 +6,7 @@ import os
 import glob
 import json
 import re
+import shutil
 import time
 import random
 from golem import GolemError, GolemRetryLater, CmdLogger, now, toutctimestamp
@@ -59,7 +60,7 @@ class Worker(Daemon):
         job.publish_results()
         job.run_hook('pre-publish')
         if job.result == 'success':
-            job.shell.rm('-rf', job.work_path, cwd='/')
+            shutil.rmtree(job.work_path)
 
         return not self.do_one
 
@@ -88,10 +89,12 @@ class Job(object):
 
         if self.worker.repo_sync and not os.path.exists(self.repo_path):
             os.makedirs(self.repo_path)
-        if not os.path.exists(self.work_path):
-            os.makedirs(self.work_path)
-        if not os.path.exists(self.artefact_path):
-            os.makedirs(self.artefact_path)
+        if os.path.exists(self.work_path):
+            shutil.rmtree(self.work_path)
+        os.makedirs(self.work_path)
+        if os.path.exists(self.artefact_path):
+            shutil.rmtree(self.artefact_path)
+        os.makedirs(self.artefact_path)
 
         self.log = open(os.path.join(self.artefact_path, 'log'), 'a')
         self.shell = whelk.Shell(output_callback=CmdLogger(self.logger, self.log), env=self.env, cwd=self.work_path, exit_callback=check_sp)
