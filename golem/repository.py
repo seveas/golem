@@ -60,6 +60,8 @@ class IniConfig(object):
 class Repository(IniConfig):
     defaults = {'upstream': None, 'reflogtype': None, 'actions': {}, 'notifiers': {}, 'remote': {}}
     def __init__(self, daemon, config, db):
+        self.configfile = config
+        self.mtime = os.path.getmtime(config)
         config = ConfigParser(config)
         IniConfig.__init__(self, config,    'repo')
         self.logger = logging.getLogger('golem.repo.' + self.name)

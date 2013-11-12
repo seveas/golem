@@ -109,18 +109,19 @@ class Master(Daemon):
         if job['repo'] in ('quit', 'exit'):
             self.logger.info("Exiting")
             return False
-        elif job['repo'] == 'reload':
-            self.repos = {}
-            self.read_repos()
         else:
             if job['repo'] not in self.repos:
                 self.logger.warning("Ignoring update for unknown repository %s" % job['repo'])
             else:
-                self.logger.info("Update found for repo %s" % job['repo'])
-                if job['why'] == 'post-receive':
-                    self.repos[job['repo']].update()
+                repo = self.repos[job['repo']]
+                self.logger.info("Update found for repo %s" % repo.name)
                 db = self.engine.connect()
-                self.repos[job['repo']].schedule(job, db)
+                if os.path.getmtime(repo.configfile) > repo.mtime:
+                    self.logger.info("Rereading configuration for %s" % repo.name)
+                    repo = self.repos[job['repo']] = golem.repository.Repository(self, repo.configfile, db)
+                if job['why'] == 'post-receive':
+                    repo.update()
+                repo.schedule(job, db)
                 db.close()
         os.chdir('/')
         return True
