@@ -15,6 +15,7 @@ import re
 import requests
 import shlex
 import socket
+import traceback
 import whelk
 import golem.db
 import sqlalchemy.sql as sql
@@ -177,8 +178,13 @@ class Repository(IniConfig):
                         self.logger.warning("Updating %s url" % remote)
                         self.git('config', 'remote.%s.url' % remote, self.remote[remote])
                     self.logger.info("Fetching from %s" % self.remote[remote])
-                    self.git('remote', 'prune', remote)
-                    self.git('fetch', remote)
+                    try:
+                        self.git('remote', 'prune', remote)
+                        self.git('fetch', remote)
+                    except RuntimeError:
+                        # For secondary repos, exceptions are ok
+                        for line in traceback.format_exc().split('\n'):
+                            self.logger.error(line)
         self.update_reflog()
 
     def update_reflog(self):
