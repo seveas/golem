@@ -14,3 +14,9 @@ for worker in golem/worker/[a-z]*.py; do
     worker=${worker//_/-}
     screen bin/golem --worker $worker
 done
+for worker in golem/notify/[a-z]*.py; do
+    worker=${worker##*\/}
+    worker=${worker%.py}
+    worker=${worker//_/-}
+    screen bin/golem --notifier $worker
+done
