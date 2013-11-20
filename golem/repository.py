@@ -275,7 +275,7 @@ class Repository(IniConfig):
                     self.logger.error("Commit %s for ref %s cannot be rescheduled, it does not exist" % (job['sha1'], job['ref']))
                     return
             else:
-                c = db.execute(_c.select().where(_c.c.ref==job['ref']).desc('submit_time').limit(1)).fetchone()
+                c = db.execute(_c.select().where(_c.c.ref==job['ref']).order_by(sql.desc(_c.c.submit_time)).limit(1)).fetchone()
                 if not c:
                     self.logger.error("Cannot reschedule actions for ref %s, no commits were processed yet" % job['ref'])
                     return
@@ -287,10 +287,15 @@ class Repository(IniConfig):
             tags = [(ref, 0)]
 
         if why == 'action-done':
-            aid = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
-                    sql.and_(_r.c.name == job['repo'], _c.c.ref==job['ref'], _c.c.sha1==job['sha1'], _a.c.name==job['action']))).fetchone()[0]
+            res = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
+                    sql.and_(_r.c.name == job['repo'], _c.c.ref==job['ref'], _c.c.sha1==job['sha1'], _a.c.name==job['action']))).fetchone()
+            aid, cid = res.action_id, res.commit_id
             db.execute(_a.update().values(status=job['result'], start_time=datetime.datetime.utcfromtimestamp(job['start_time']), 
                                           end_time=datetime.datetime.utcfromtimestamp(job['end_time']), duration=job['duration']).where(_a.c.id==aid))
+            if job['result'] == 'fail':
+                db.execute(_c.update().values(status=job['result']).where(_c.c.id==cid))
+            elif db.execute(sql.select([sql.func.count(_a.c.id)]).where(sql.and_(_a.c.status!='success', _a.c.commit==cid))).scalar() == 0:
+                db.execute(_c.update().values(status='success').where(_c.c.id==cid))
             artefact_path = os.path.join(self.actions[job['action']].artefact_path, '%s@%s' % (job['ref'], job['sha1']))
             for path, _, files in os.walk(artefact_path):
                 for file in files:
@@ -379,7 +384,7 @@ class Repository(IniConfig):
                 for prev_sha1, sha1 in refs[ref][-(action.backlog+1):]:
                     cid = db.execute(_c.select().where(_c.c.repository==self.id).where(_c.c.ref==ref).where(_c.c.sha1==sha1)).fetchone()
                     cid = cid.id if cid else db.execute(_c.insert().values(repository=self.id, ref=ref, sha1=sha1, prev_sha1=prev_sha1,
-                                                        submit_time=now())).inserted_primary_key[0]
+                                                        submit_time=now(), status='new')).inserted_primary_key[0]
                     act = db.execute(_a.select().where(_a.c.commit==cid).where(_a.c.name==action.name)).fetchone()
                     if not act:
                         db.execute(_a.insert().values(commit=cid, name=action.name, status='new'))
@@ -394,6 +399,7 @@ class Repository(IniConfig):
 
                     if act.status == 'new':
                         db.execute(_a.update().where(_a.c.id==act.id).values(status='scheduled'))
+                        db.execute(_c.update().where(sql.and_(_c.c.id==cid, _c.c.status!='fail')).values(status='in-progress'))
                         action.schedule(ref, prev_sha1, sha1)
 
     def git(self, *args, **kwargs):
