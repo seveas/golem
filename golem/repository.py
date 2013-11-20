@@ -71,18 +71,17 @@ class Repository(IniConfig):
         self.artefact_path = os.path.join(self.path, 'artefacts')
         self.shell = whelk.Shell(output_callback=CmdLogger(self.logger),cwd=self.repo_path)
 
-        if re.match('^https?://', self.upstream):
+        if hasattr(self, 'reflog_url'):
             self.reflogtype = 'http'
-            self.reflogurl = self.upstream
+            self.reflogurl = self.reflog_url
+        elif re.match('^https?://', self.upstream):
+            self.reflogtype = 'http'
+            self.reflogurl = self.upstream + '/logs/%REF%'
         elif self.upstream.startswith('file://'):
             self.reflogtype = 'file'
             self.upstream_path = self.upstream[7:]
             if self.git('config', 'core.bare', cwd=self.upstream).stdout.strip() != 'false':
                 self.upstream_path = os.path.join(self.upstream_path, '.git')
-        elif self.upstream.startswith('git://'):
-            if hasattr(self, 'gitweb'):
-                self.reflogtype = 'http'
-                self.reflogurl = self.gitweb
         elif ':' in self.upstream:
             self.reflogtype = 'ssh'
         else:
@@ -202,7 +201,7 @@ class Repository(IniConfig):
                 logpath = os.path.join(self.repo_path, 'logs', 'refs', 'heads', branch)
                 if not os.path.exists(os.path.dirname(logpath)):
                     os.makedirs(os.path.dirname(logpath))
-                res = requests.get('%s/logs/refs/heads/%s' % (self.reflogurl, branch))
+                res = requests.get(self.reflogurl.replace('%REF%', 'refs/heads/%s' % branch))
                 if res.status_code != 200:
                     raise GolemError("Unable to fetch reflog for branch: %s" % r.status_code)
                 with open(logpath, 'w') as fd:
