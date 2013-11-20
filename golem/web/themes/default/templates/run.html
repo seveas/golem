@@ -1,0 +1,100 @@
+{#
+Golem - Continuous integration for git
+Copyright (C) 2013 Dennis Kaarsemaker
+See the LICENSE file for licensing details
+#}
+{% extends "base.html" %}
+{% block title %}{{ repo.name }}{% endblock %}
+{% block extrahead %}
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="/static/dagre-d3.min.js"></script>
+{% endblock %}
+{% block content %}
+<h1>{{ repo.name }}</h1>
+<script type="text/javascript">
+var dependencies = {{ repo.dependencies()|json }};
+var layout = dagreD3.layout().rankDir("LR");
+var renderer = new dagreD3.Renderer();
+var oldDrawNode = renderer.drawNode();
+renderer.drawNode(function(graph, u, svg) {
+    oldDrawNode(graph, u, svg);
+    svg.attr("id", "node-" + u);
+    svg.attr("class", svg.attr("class") + " " + actionso[u].status);
+});
+</script>
+<h2>{{ commit.ref }} @ {{ commit.sha1[:7] }}</h2>
+<table>
+<tr><th>Submitted on</th><td>{{ commit.submit_time.strftime("%Y-%m-%d") }} at {{ commit.submit_time.strftime("%H:%M") }}</td></tr>
+<tr><th>Overall status</th><td>{{ commit.status }}</td></tr>
+{% if commit.prev_sha1 != '0' * 40 %}
+<tr><th>Shortlog</th><td class="shortlog"><pre>{{ repo.shortlog_html(commit.prev_sha1, commit.sha1)|safe }}</pre></td></tr>
+{% else %}
+<tr><th>Commit message</th><td class="shortlog"><pre>{{ repo.shortlog(commit.sha1 + "^", commit.sha1) }}</pre></td></tr>
+{% endif %}
+</table>
+<svg id="svg">
+    <g transform="translate(20,20)" />
+</svg>
+<script type="text/javascript">
+var actions = {{ actions|json }}
+var actionso = new Array();
+var g = new dagreD3.Digraph();
+actions.forEach(function(action, i) {
+    g.addNode(action.name, {label: action.name});
+    actionso[action.name] = action;
+});
+dependencies.forEach(function(dep, i) { 
+    try {
+        g.addEdge(null, dep[1], dep[0]); }
+    catch (e) { }
+});
+renderer.layout(layout).run(g, d3.select("#svg g"))
+var bbox = d3.select("#svg").node().getBBox();
+d3.select("#svg").attr("height", bbox.height + 40).attr('width', bbox.width + 40);
+</script>
+{% for action in actions %}
+<h2>{{ action.name }}</h2>
+<table>
+<tr><th>Queue</th><td>{{ action.config.queue }}</td></tr>
+<tr><th>Status</th><td>{{ action.status }}</td></tr>
+{% if action.start_time %}
+<tr><th>Start time</th><td>{{ action.start_time }}</td></tr>
+<tr><th>End time</th><td>{{ action.end_time }} ({{ action.duration|humantimediff }})</td></tr>
+<tr><th>Log</th><td><a href="{{ url_for('artefact', repo=repo.name, ref=commit.ref, sha1=commit.sha1, action=action.name, filename='log') }}">download</a></td></tr>
+{% endif %}
+{% if action.config['publish'] %}
+<tr><th>Publish</th><td>{{ action.config['publish']|join(', ') }}</td></tr>
+{% endif %}
+{% if action.config['hook'] %}
+<tr><th>Hooks</th><td><dl>
+{% for key in sorted(action.config['hook']) %}
+<dt>{{ key }}</dt><dd>
+{% for hook in action.config['hook'][key] %}
+<pre>{{ hook|join(" ") }}</pre>
+{% endfor %}
+</dd>
+{% endfor %}
+</dl></td></tr>
+{% endif %}
+{% if action.config['env'] %}
+<tr><th>Environment</th><td>
+{% for key in action.config['env'] %}
+<pre>{{ key }}="{{ action.config['env'][key] }}"</pre>
+{% endfor %}
+</td></td>
+{% endif %}
+{% for item in action.config %}
+{% if item not in ['branches', 'inherit', 'hook', 'requires', 'queue', 'publish', 'env', 'backlog'] %}
+<tr><th>{{ item }}</th><td>{{ action.config[item]|humanize }}</td></tr>
+{% endif %}
+{% endfor %}
+{% if action.files %}
+<tr><th>Files</th><td><ul class="filelist">
+{% for file in action.files %}
+<li><a href="{{ url_for('artefact', repo=repo.name, ref=commit.ref, sha1=commit.sha1, action=action.name, filename=file.filename) }}">{{ file.filename }}</a> <span class="filesha1">({{ file.sha1 }})</span></li>
+{% endfor %}
+</ul></td></tr>
+{% endif %}
+</table>
+{% endfor %}
+{% endblock %}

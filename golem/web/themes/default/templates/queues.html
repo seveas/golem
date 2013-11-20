@@ -1,0 +1,32 @@
+{#
+Golem - Continuous integration for git
+Copyright (C) 2013 Dennis Kaarsemaker
+See the LICENSE file for licensing details
+#}
+{% extends "base.html" %}
+{% block title %}Active queues{% endblock %}
+{% block content %}
+<h1>Active queues</h1>
+<table>
+{% for queue in sorted(queues.keys()) %}
+<tr><th>Queue</th><td>{{ queue }}</td></tr>
+<tr><th>Jobs</th><td><ul class="filelist">
+{% if queues[queue]['stats']['current-jobs-reserved'] %}
+<li>{{ queues[queue]['stats']['current-jobs-reserved'] }} in progress</li>
+{% endif %}
+{% if queues[queue]['stats']['current-jobs-ready'] %}
+<li>{{ queues[queue]['stats']['current-jobs-ready'] }} waiting</li>
+{% for job in queues[queue]['jobs'] %}
+<li>{{ job.action }} for <a href="{{ url_for('run', repo=job['repo'], ref=job['ref'], sha1=job['sha1']) }}">{{ job.repo }} {{ job.ref }}@{{ job.sha1[:7] }}</a></li>
+{% endfor %}
+{% endif %}
+{% if queues[queue]['stats']['current-jobs-buried'] %}
+<li>{{ queues[queue]['stats']['current-jobs-buried'] }} internal error</li>
+{% for job in queues[queue]['buried'] %}
+<li>{{ job.action }} for <a href="{{ url_for('run', repo=job['repo'], ref=job['ref'], sha1=job['sha1']) }}">{{ job.repo }} {{ job.ref }}@{{ job.sha1[:7] }}</a></li>
+{% endfor %}
+{% endif %}
+</ul></td></tr>
+{% endfor %}
+</table>
+{% endblock %}

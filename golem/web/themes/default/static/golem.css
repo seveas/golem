@@ -1,0 +1,339 @@
+/*
+golem - Web based git repository browser
+Copyright (C) 2013 Dennis Kaarsemaker
+See the LICENSE file for licensing details
+*/
+
+.golem header h1 {
+    display: inline-block;
+    padding-left: 1em;
+    vertical-align: middle;
+    position: absolute;
+    top: 0.3em;
+}
+
+.golem {
+    background-color: #fcfcfa;
+    color: rgb(78, 68, 60);
+    background: url("/static/body.jpg") repeat scroll 0% 0% rgb(240, 239, 231);
+    font-family: "Lato","Helvetica Neue",sans-serif;
+    font-size: 14px;
+    padding: 5px;
+    margin: 0px;
+}
+.golem * {
+    padding: 0px;
+    margin: 0px;
+}
+
+.golem input:-moz-placeholder {
+    color: rgb(154, 153, 148) !important;
+}
+
+.golem a, .golem a:hover, .golem a:active {
+    color: rgb(3, 136, 166);
+    text-decoration: none;
+}
+
+.golem #content {
+    background-color: white;
+    border-radius: 10px;
+    border: 1px solid rgb(226, 224, 216);
+    padding: 0.3em 1em;
+    margin: 0;
+}
+.golem h1 {
+    font-size: 28px;
+    line-height: 44px;
+    margin-bottom: 0.4em;
+}
+.golem h2 {
+    font-size: 18px;
+    line-height: 36px;
+    margin-bottom: 0.3em;
+    font-weight: bold;
+}
+.golem h1, .golem h2, .golem h3, .golem h4, .golem h5, .golem h6 {
+    margin: 0px;
+}
+.golem .about {
+    float: right;
+    width: 300px;
+}
+.golem .repo {
+    border-top: 1px solid rgb(226, 224, 216);
+    padding: 0 1em 1em 1em;
+    margin-bottom: 0.2em;
+    width: 600px;
+}
+.golem .owner {
+    color: rgb(154, 153, 148);
+    font-size: 50%;
+}
+.golem .lastchange {
+    color: rgb(154, 153, 148);
+    font-size: 75%;
+}
+.golem .footer {
+    color: rgb(154, 153, 148);
+    text-align: center;
+    font-size: 75%;
+    font-weight: bold;
+}
+.golem .footer a {
+    color: rgb(154, 153, 148);
+}
+.golem .tabnav {
+    border-bottom: solid 1px rgb(226, 224, 216);
+    margin: 10px 0px;
+    padding: 0px;
+}
+.golem .tabnav-tabs {
+    display: inline-block;
+    margin: 4px 8px 4px 0px;
+}
+.golem .tabnav-tabs > li {
+    display: inline-block;
+}
+.golem .tabnav-tabs a {
+    border-color: rgb(226, 224, 216);
+    border-radius: 3px 3px 0px 0px;
+    color: rgb(78, 68, 60);
+    background-color: white;
+}
+.golem .tabnav-tab {
+    border-width: 1px 1px 0px;
+    border-style: solid solid none;
+    padding: 4px 8px;
+    margin: 0px 10px;
+    background-color: white;
+}
+.golem .tabnav-tabs .selected {
+    font-weight: bold;
+    padding-bottom: 5px;
+    background-color: white;
+}
+.nocommit {
+    margin: 100px;
+    text-align: center;
+    font-size: 150%;
+    color: rgb(226, 224, 216);
+}
+.golem .commit .gravatar {
+    border-radius: 4px;
+    float: left;
+    margin-left: -44px;
+}
+.golem .commit {
+    border-bottom: solid 1px rgb(226, 224, 216);
+    border-left: solid 1px rgb(226, 224, 216);
+    border-right: solid 1px rgb(226, 224, 216);
+    padding: 5px;
+    overflow: auto;
+}
+.golem .commitmsg {
+    margin-left: 44px;
+}
+
+.golem .commits .invisible {
+    display: none;
+}
+
+.golem .commitmsg a {
+    color: rgb(78, 68, 60);
+    font-weight: bold;
+}
+
+.golem .commitmsg a:hover {
+    color: rgb(78, 68, 60);
+    font-weight: bold;
+    text-decoration: underline;
+}
+.golem .commitdata  {
+    padding-top: 1em;
+}
+.golem .commitdata span {
+    color: rgb(154, 153, 148);
+    font-size: 90%;
+}
+.golem .commitmsg .committer {
+    margin-left: 2em;
+}
+.golem pre, .golem code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 12px;
+    color: rgb(51, 51, 51);
+}
+.golem .show_long {
+    color: rgb(154, 153, 148); 
+}
+.golem .show_long:hover {
+    text-decoration: underline;
+}
+.golem .highlight .lineno { color: rgb(154, 153, 148); }
+.golem .highlight .special { color: rgb(78, 68, 60); }
+
+.golem .commitdate {
+    border: solid 1px rgb(226, 224, 216);
+    border-bottom-width: 0px;
+    font-weight: bold;
+    border-radius: 5px 5px 0px 0px;
+    padding: 3px 5px;
+    font-size: 110%;
+    background-color: rgb(237, 235, 227);
+    margin-top: 10px;
+}
+
+.golem .pagelink-prev {
+    padding: 8px 10px;
+    background-color: rgb(237, 235, 227);
+    line-height: 150%;
+    border-radius: 5px 0 0 5px;
+}
+.golem .pagelink-next {
+    padding: 8px 10px;
+    background-color: rgb(237, 235, 227);
+    line-height: 150%;
+    border-radius: 0 5px 5px 0;
+}
+.golem .pagination {
+    margin-top: 25px;
+    margin-bottom: 25px;
+}
+.golem pre.literal-block {
+    padding: 5px;
+}
+.golem .blob .actions, .golem .commitdate .actions {
+    display: inline-block;
+    float: right;
+    font-weight: normal;
+    font-size: 13px;
+}
+.golem .ref {
+    padding: 0px 3px;
+    border-radius: 3px;
+    font-size: 80%;
+}
+.golem .ref_head {
+    background-color: rgb(221, 255, 221);
+}
+.golem .ref_tag {
+    background-color: rgb(255, 255, 204);
+}
+.golem .lastchange img {
+    border-radius: 3px;
+}
+.golem .clonelinks {
+    margin-top: 1em;
+}
+.golem .clonelinks ul {
+    display: inline;
+}
+.golem .clonelinks li {
+    display: inline;
+    border-radius: 3px;
+    color: rgb(78, 68, 60);
+    font-weight: bold;
+    background-color: rgb(237, 235, 227);
+    padding: 0px 5px;
+    margin: 2px;
+}
+.golem .clonelinks li:hover {
+    cursor: pointer;
+}
+.golem .clonelinks li span {
+    display: none;
+}
+.golem .clonelinks input {
+    border-color: rgb(226, 224, 216);
+    border-width: 1px;
+    border-radius: 3px;
+    padding: 0px 10px;
+    width: 400px;
+}
+.golem .parents {
+    float: right;
+    width: 50%;
+}
+.golem .parents tr :first-child {
+    width: 7em;
+    vertical-align: top;
+    padding-right: 0.5em;
+}
+.golem .parents tr {
+    overflow: hidden;
+    height: 1em;
+}
+.golem .fail {
+    background-color: rgb(255,221,221);
+    padding: 0px 3px 0px 3px;
+    margin-left: 5px;
+    font-weight: bold;
+}
+.golem .fail:before {
+    content: "❗ ";
+}
+.golem .success {
+    background-color: rgb(221, 255, 221);
+    padding: 0px 3px 0px 3px;
+    margin-left: 5px;
+    font-weight: bold;
+}
+.golem .success:before {
+    content: "✔ ";
+}
+.golem .scheduled, .golem .in-progress {
+    background-color: rgb(255, 255, 204);
+    padding: 0px 3px 0px 3px;
+    margin-left: 5px;
+    font-weight: bold;
+}
+.golem .scheduled:before, .golem .in-progress:before {
+    content: "⧖ ";
+}
+.golem th {
+    text-align: left;
+    vertical-align: top;
+    padding-right: 0.5em;
+}
+rect {
+    fill: #fff;
+}
+
+.node rect {
+    stroke-width: 1.5px;
+    stroke: #333;
+    fill: none;
+}
+
+.edge rect {
+    fill: #fff;
+}
+
+.edge path {
+    fill: none;
+    stroke: #333;
+    stroke-width: 1.5px;
+}
+.golem .fail rect {
+    fill: rgb(255,221,221);
+}
+.golem .success rect {
+    fill: rgb(221,255,221);
+}
+.golem .scheduled rect {
+    fill: rgb(255, 255, 204);
+}
+.golem dd {
+    padding-left: 2em;
+}
+.golem dt {
+    font-style: italic;
+}
+.golem ul.filelist {
+    list-style: none;
+}
+.golem span.filesha1 {
+    font-size: 75%;
+    color: #aaaaaa;
+}

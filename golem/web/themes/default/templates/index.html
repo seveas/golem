@@ -1,0 +1,25 @@
+{#
+Golem - Continuous integration for git
+Copyright (C) 2013 Dennis Kaarsemaker
+See the LICENSE file for licensing details
+#}
+{% extends "base.html" %}
+{% block title %}Repositories{% endblock %}
+{% block content %}
+<h1>Repositories</h1>
+
+{% for repo in isorted(repos.keys()) %}
+{% set repo = repos[repo] %}
+<div class="repo">
+<h2><a href="{{ url_for('repo', repo=repo.name) }}">{{ repo.name }}</a></h2>
+<div class="lastchange">
+{% set last_run = repo.last_commits(1, g.db)[0] %}
+{% if last_run %}
+Last run submitted <a href="{{ url_for('run', repo=repo.name, ref=last_run.ref, sha1=last_run.sha1 ) }}">{{ last_run.submit_time|humantime }}</a>, for {{ last_run.ref }} <span class="status {{ last_run.status }}">{{ last_run.status }}</span>
+{% else %}
+No CI runs yet
+{% endif %}
+</div>
+</div>
+{% endfor %}
+{% endblock %}

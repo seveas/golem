@@ -1,0 +1,59 @@
+{#
+Golem - Continuous integration for git
+Copyright (C) 2013 Dennis Kaarsemaker
+See the LICENSE file for licensing details
+#}
+{% extends "base.html" %}
+{% block title %}{{ repo.name }}{% endblock %}
+{% block extrahead %}
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="/static/dagre-d3.min.js"></script>
+{% endblock %}
+{% block content %}
+<h1>{{ repo.name }}</h1>
+<table>
+<tr><th>webinterface</th><td><a href="{{ repo.browse_url }}">{{ repo.browse_url }}</a></td></tr>
+<tr><th>upstream</th><td>{{ repo.upstream }}</td></tr>
+{% for remote in sorted(repo.remote) %}
+<tr><th>{{ remote }}</th><td>{{ repo.remote[remote] }}</td></tr>
+{% endfor %}
+</table>
+<script type="text/javascript">
+var dependencies = {{ repo.dependencies()|json }};
+var layout = dagreD3.layout().rankDir("LR");
+var renderer = new dagreD3.Renderer();
+var oldDrawNode = renderer.drawNode();
+renderer.drawNode(function(graph, u, svg) {
+    oldDrawNode(graph, u, svg);
+    svg.attr("id", "node-" + u);
+    svg.attr("class", svg.attr("class") + " " + actionso[u].status);
+});
+</script>
+{% for commit in repo.last_commits(10, g.db) %}
+<h2>{{ commit.ref }} @ <a href="{{ url_for('run', repo=repo.name, ref=commit.ref, sha1=commit.sha1 ) }}">{{ commit.sha1[:7] }}</a></h2>
+<table>
+<tr><th>Submitted on</th><td>{{ commit.submit_time.strftime("%Y-%m-%d") }} at {{ commit.submit_time.strftime("%H:%M") }}</td></tr>
+<tr><th>Overall status</th><td>{{ commit.status }}</td></tr>
+</table>
+<svg id="svg{{ loop.index }}">
+    <g transform="translate(20,20)" />
+</svg>
+<script type="text/javascript">
+var actions = {{ repo.actions_for(commit.ref, commit.sha1, g.db) | json }};
+var actionso = new Array();
+var g = new dagreD3.Digraph();
+actions.forEach(function(action, i) {
+    g.addNode(action.name, {label: action.name});
+    actionso[action.name] = action;
+});
+dependencies.forEach(function(dep, i) { 
+    try {
+        g.addEdge(null, dep[1], dep[0]); }
+    catch (e) { }
+});
+renderer.layout(layout).run(g, d3.select("#svg{{ loop.index}} g"))
+var bbox = d3.select("#svg{{ loop.index }}").node().getBBox();
+d3.select("#svg{{ loop.index }}").attr("height", bbox.height + 40).attr('width', bbox.width + 40);
+</script>
+{% endfor %}
+{% endblock %}

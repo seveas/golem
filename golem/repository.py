@@ -147,6 +147,41 @@ class Repository(IniConfig):
         self.id = db.execute(sql.select([_r.c.id]).where(_r.c.name==self.name)).fetchone()
         self.id = self.id.id if self.id else db.execute(_r.insert().values(name=self.name)).inserted_primary_key[0]
 
+    def last_commits(self, count, db):
+        _c = golem.db.commit
+        return db.execute(_c.select().where(_c.c.repository==self.id).order_by(sql.desc(_c.c.submit_time)).limit(count)).fetchall()
+
+    def commit(self, ref, sha1, db):
+        _c = golem.db.commit
+        return db.execute(_c.select().where(sql.and_(_c.c.repository==self.id, _c.c.ref==ref, _c.c.sha1==sha1))).fetchone()
+
+    def shortlog(self, old, new):
+        from golem.web.encoding import decode
+        return decode(self.shell.git('shortlog', "--format=* [%h] %s", '%s..%s' % (old, new), cwd=self.repo_path).stdout)
+
+    def shortlog_html(self, old, new):
+        log = self.shortlog(old, new).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        log = re.sub('\[([0-9a-f]+)\]', lambda match: '[<a href="%s">%s</a>]' % (self.commit_url.replace('%SHA1%', match.group(1)), match.group(1)), log)
+        return log
+
+    def dependencies(self):
+        ret = []
+        for src in self.actions.values():
+            for dst in src.requires:
+                ret.append([src.name, dst[7:]])
+        return ret
+
+    def actions_for(self, ref, sha1, db):
+        _c = golem.db.commit
+        _a = golem.db.action
+        _f = golem.db.artefact
+        cid = db.execute(_c.select('id').where(sql.and_(_c.c.ref==ref, _c.c.sha1==sha1))).fetchone()['id']
+        data = db.execute(_a.select().where(_a.c.commit==cid).order_by(sql.asc(_a.c.start_time))).fetchall()
+        data = [{'name': x.name, 'status': x.status, 'start_time': x.start_time, 'end_time': x.end_time,
+            'duration': x.duration, 'config': self.actions[x.name].config,
+            'files':[{'filename': y.filename, 'sha1': y.sha1} for y in db.execute(_f.select().where(_f.c.action==x.id)).fetchall()]} for x in data]
+        return data
+
     def create_dirs(self):
         if not os.path.exists(self.artefact_path):
             os.makedirs(self.artefact_path)
