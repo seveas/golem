@@ -9,11 +9,11 @@ class Daemon(Notifier):
         self.logger.info("Emailing log to %s" % job.to)
         with open(os.path.join(job.artefact_path, 'log')) as fd:
             log = fd.read()
-        gitlog = job.shell.git('shortlog', '--format=[%h] %s', '%s..%s' % (job.prev_sha1, job.sha1))
+        gitlog = job.shell.git('shortlog', '--format=[%h] %s', '%s..%s' % (job.prev_sha1, job.sha1)).stdout
         preprocess = getattr(job, 'preprocess_log')
         if preprocess:
             log = job.shell[preprocess](input=log).stdout
-        self.send_log(job, '\n'.join(gitlog, log))
+        self.send_log(job, '\n'.join([gitlog, log]))
 
     def send_log(self, job, log):
         message = self.prepare_message(job, log)
