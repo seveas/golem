@@ -2,6 +2,7 @@ from golem.daemon import Daemon
 from collections import defaultdict
 import keyword
 import whelk
+import lockfile
 import os
 import glob
 import json
@@ -41,9 +42,10 @@ class Worker(Daemon):
             job.run_hook('post-sync')
         os.chdir(job.work_path)
         if self.repo_checkout:
-            job.run_hook('pre-checkout')
-            job.checkout(job.sha1)
-            job.run_hook('post-checkout')
+            with lockfile.FileLock(os.path.join(self.repo_path, 'golem.lock')):
+                job.run_hook('pre-checkout')
+                job.checkout(job.sha1)
+                job.run_hook('post-checkout')
 
         try:
             self.setup(job)
