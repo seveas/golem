@@ -4,7 +4,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 export PYTHONPATH=.
 if [ -z "$STY" ]; then
-    exec screen "$0" "$@"
+    exec screen -S golem "$0" "$@"
 fi
 
 screen bin/golem --master
