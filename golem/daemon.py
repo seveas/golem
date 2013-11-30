@@ -86,7 +86,7 @@ class Master(Daemon):
         self.repos = {}
         self.repo_dir = repo_dir
         self.chems = chems
-        self.engine = golem.db.create_engine(db)
+        self.engine = golem.db.create_engine(db, pool_recycle=3600)
         golem.db.metadata.create_all(self.engine)
         self.read_repos()
         gh = None
