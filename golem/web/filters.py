@@ -135,23 +135,21 @@ def dlength(diff):
 
 @filter('json')
 def json_(data):
-    data = copy.deepcopy(data)
-    fixup(data)
+    data = my_deepcopy(data)
     return Markup(json.dumps(data))
 
-def fixup(data):
+re_class = re.compile('').__class__
+def my_deepcopy(data):
     if isinstance(data, list):
-        for d in data:
-            if isinstance(d, datetime.datetime):
-                data[d] = toutctimestamp(data[d])
-            elif isinstance(d, (list, dict)):
-                fixup(d)
+        return [my_deepcopy(x) for x in data]
     elif isinstance(data, dict):
-        for d in data:
-            if isinstance(data[d], datetime.datetime):
-                data[d] = toutctimestamp(data[d])
-            elif isinstance(data[d], (list, dict)):
-                fixup(d)
+        return dict([(my_deepcopy(x), my_deepcopy(data[x])) for x in data])
+    elif isinstance(data, datetime.datetime):
+        return toutctimestamp(data)
+    elif data.__class__ == re_class:
+        return data.pattern
+    return data
+
 @filter
 def humanize(data):
     if isinstance(data, dict):
