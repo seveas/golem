@@ -51,6 +51,7 @@ defaults = {
     'chems':            '/etc/golem/chems',
     'repos':            '/var/lib/golem/repos',
     'lockdir':          '/var/lock/golem',
+    'piddir':           '/var/run/golem',
     'rsync_root':       '',
     'rsync_password':   '',
     'rsync_hardlink':   '',
@@ -160,6 +161,7 @@ if opts['--worker']:
     if parser.has_section('worker:' + name):
         config = dict([(x, parser.get('worker:' + name, x)) for x in parser.options('worker:' + name)])
 
+    pidfile = os.path.join(parser.get('golem', 'piddir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.pid')
     lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
     if not os.path.exists(os.path.dirname(lockfile)):
         os.makedirs(os.path.dirname(lockfile))
@@ -191,6 +193,7 @@ elif opts['--notifier']:
     if parser.has_section('notifier:' + name):
         config = dict([(x, parser.get('notifier:' + name, x)) for x in parser.options('notifier:' + name)])
 
+    pidfile = os.path.join(parser.get('golem', 'piddir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.pid')
     lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
     if not os.path.exists(os.path.dirname(lockfile)):
         os.makedirs(os.path.dirname(lockfile))
@@ -214,6 +217,7 @@ else:
     chems = parser.get('master', 'chems')
     db = parser.get('master', 'db')
 
+    pidfile = os.path.join(parser.get('golem', 'piddir'), 'golem' + (opts['--instance'] and '-' + opts['--instance'] or '') + '.pid')
     lockfile = os.path.join(parser.get('golem', 'lockdir'), 'golem' + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
     if not os.path.exists(os.path.dirname(lockfile)):
         os.makedirs(os.path.dirname(lockfile))
@@ -238,6 +242,6 @@ else:
                     shell[sys.argv[0]]('--config', config, '--worker', worker, '--daemon')
 
 if opts['--daemon']:
-    daemon.daemonize()
+    daemon.daemonize(pidfile)
 daemon.run()
 

@@ -43,7 +43,7 @@ class Daemon(object):
             self.connect()
             return self.bs.reserve()
 
-    def daemonize(self):
+    def daemonize(self, pidfile):
         # First fork
         try:
             if os.fork() > 0:
@@ -63,6 +63,8 @@ class Daemon(object):
             sys.stderr.write("fork #2 failed: (%d) %s\n" % (e.errno, e.strerror))
             os._exit(1)
 
+        with open(pidfile, 'w') as fd:
+            fd.write('%s\n' % os.getpid())
         si = open('/dev/null', 'r')
         so = open('/dev/null', 'a+', 0)
         se = open('/dev/null', 'a+', 0)
