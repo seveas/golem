@@ -6,11 +6,12 @@ import lockfile
 import os
 import glob
 import json
+import logging
 import re
 import shutil
 import time
 import random
-from golem import GolemError, GolemRetryLater, CmdLogger, now, toutctimestamp
+from golem import GolemError, GolemRetryLater, OutputLogger, RunLogger, now, toutctimestamp
 
 class Worker(Daemon):
     repo_sync = True
@@ -98,9 +99,16 @@ class Job(object):
             shutil.rmtree(self.artefact_path)
         os.makedirs(self.artefact_path)
 
-        self.log = open(os.path.join(self.artefact_path, 'log'), 'a')
-        self.shell = whelk.Shell(output_callback=CmdLogger(self.logger, self.log), env=self.env, cwd=self.work_path, exit_callback=check_sp)
-        self.pipe = whelk.Pipe(output_callback=CmdLogger(self.logger, self.log), env=self.env, cwd=self.work_path, exit_callback=check_sp)
+        self.shell = whelk.Shell(output_callback=OutputLogger(self.logger), run_callback=RunLogger(self.logger), env=self.env, cwd=self.work_path, exit_callback=check_sp)
+        self.pipe = whelk.Pipe(output_callback=OutputLogger(self.logger), run_callback=RunLogger(self.logger), env=self.env, cwd=self.work_path, exit_callback=check_sp)
+
+        # Add a loghandler for our logfile so everything is properly logged per job
+        self.log = os.path.join(self.artefact_path, 'log')
+        handler = logging.FileHandler(self.log)
+        handler.is_job_handler = True
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(message)s', datefmt='%H:%M:%S'))
+        self.logger.addHandler(handler)
 
     def sync(self):
         local = self.repo_path
@@ -117,7 +125,10 @@ class Job(object):
         self.shell.rsync(*args)
 
     def run_hook(self, which, **kwargs):
-        for command in self.hook.get(which, []):
+        if which not in self.hook:
+            return
+        self.logger.debug("Running %s hooks" % which)
+        for command in self.hook[which]:
             if '|' in command:
                 pipe = None
                 while command:

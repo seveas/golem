@@ -21,7 +21,7 @@ if($log =~ /TESTFILE=harness/) {
 }
 # Otherwise stript to the last succesful make
 else {
-    $log =~ s/.*\n(?=Creating|Running|make.*Entering)//s;
+    $log =~ s/.*\n(?=\[[\d:]+\] Creating|Running|make.*Entering)//s;
 }
 
 print $log;

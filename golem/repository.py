@@ -5,7 +5,7 @@ import datetime
 import fnmatch
 import getpass
 import github3
-from   golem import GolemError, CmdLogger, now
+from   golem import GolemError, OutputLogger, RunLogger, now
 import hashlib
 import json
 import keyword
@@ -69,7 +69,7 @@ class Repository(IniConfig):
         self.path = os.path.join(daemon.repo_dir, self.name)
         self.repo_path = os.path.join(self.path, self.name + '.git')
         self.artefact_path = os.path.join(self.path, 'artefacts')
-        self.shell = whelk.Shell(output_callback=CmdLogger(self.logger),cwd=self.repo_path)
+        self.shell = whelk.Shell(output_callback=OutputLogger(self.logger), run_callback=RunLogger(self.logger), cwd=self.repo_path)
 
         if hasattr(self, 'reflog_url'):
             self.reflogtype = 'http'

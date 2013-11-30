@@ -1,6 +1,6 @@
 from golem.daemon import Daemon
 from golem.worker import check_sp
-from golem import CmdLogger
+from golem import OutputLogger, RunLogger
 import json
 import keyword
 import os
@@ -35,5 +35,5 @@ class Job(object):
         self.artefact_path = os.path.join(worker.repo_dir, self.repo, 'artefacts', self.action, '%s@%s' % (self.ref, self.sha1))
         self.env = {'GIT_DIR': self.repo_path}
 
-        self.shell = whelk.Shell(output_callback=CmdLogger(self.logger), env=self.env, cwd=self.repo_path, exit_callback=check_sp)
-        self.pipe = whelk.Pipe(output_callback=CmdLogger(self.logger), env=self.env, cwd=self.repo_path, exit_callback=check_sp)
+        self.shell = whelk.Shell(output_callback=OutputLogger(self.logger), run_callback=RunLogger(self.logger), env=self.env, cwd=self.repo_path, exit_callback=check_sp)
+        self.pipe = whelk.Pipe(output_callback=OutputLogger(self.logger), run_callback=RunLogger(self.logger), env=self.env, cwd=self.repo_path, exit_callback=check_sp)

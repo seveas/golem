@@ -33,6 +33,12 @@ class Daemon(object):
                     self.logger.error(line)
                 job.bury()
                 os.chdir('/')
+            # Try to remove extraneous logging handlers to avoid logging infinitely after an error
+            for handler in self.logger.handlers[:]:
+                if getattr(handler, 'is_job_handler', False):
+                    handler.close()
+                    self.logger.removeHandler(handler)
+                    del(handler)
 
     def find_update(self):
         self.logger.info("Waiting for update")

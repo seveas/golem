@@ -1,15 +1,15 @@
 import datetime
+import re
 
 class GolemError(Exception): pass
 class GolemRetryLater(Exception): pass
 
-class CmdLogger(object):
-    def __init__(self, logger, logfd=None):
+class OutputLogger(object):
+    def __init__(self, logger):
         self.logger = logger
         self.data = {}
-        self.logfd = logfd
 
-    def __call__(self, shell, sp, fd, data, *args, **kwargs):
+    def __call__(self, cmd, sp, fd, data, *args, **kwargs):
         if data is None:
             if (sp.pid, fd) not in self.data:
                 return
@@ -19,11 +19,27 @@ class CmdLogger(object):
         while '\n' in data:
             line, data = data.split('\n', 1)
             self.logger.debug(line)
-            if self.logfd:
-                self.logfd.write(line + "\n")
-                self.logfd.flush()
         if data:
             self.data[(sp.pid, fd)] = data
+
+class RunLogger(object):
+    def __init__(self, logger):
+        self.logger = logger
+
+    def __call__(self, cmd):
+        args = [_quote(x) for x in [cmd.name] + list(cmd.args)]
+        env = cmd.sp_kwargs.get('env', '')
+        if env:
+            env = ['%s=%s' % (x, _quote(env[x])) for x in env]
+            env = '%s ' % ' '.join(env)
+        self.logger.debug("Running %s%s" % (env, ' '.join(args)))
+
+def _quote(cmd):
+    if not cmd:
+        return "''"
+    if re.match(r'^[-0-9a-zA-Z@%_+=:,./]+$', cmd):
+        return cmd
+    return "'%s'" % cmd.replace("'", "'\"'\"'")
 
 from ConfigParser import ConfigParser as CP
 from ConfigParser import NoSectionError, NoOptionError
