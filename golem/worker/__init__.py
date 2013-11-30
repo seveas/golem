@@ -43,7 +43,7 @@ class Worker(Daemon):
             job.run_hook('post-sync')
         os.chdir(job.work_path)
         if self.repo_checkout:
-            with lockfile.FileLock(os.path.join(self.repo_path, 'golem.lock')):
+            with lockfile.FileLock(os.path.join(job.repo_path, 'golem.lock')):
                 job.run_hook('pre-checkout')
                 job.checkout(job.sha1)
                 job.run_hook('post-checkout')

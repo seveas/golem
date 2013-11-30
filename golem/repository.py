@@ -80,7 +80,7 @@ class Repository(IniConfig):
         elif self.upstream.startswith('file://'):
             self.reflogtype = 'file'
             self.upstream_path = self.upstream[7:]
-            if self.git('config', 'core.bare', cwd=self.upstream).stdout.strip() != 'false':
+            if self.git('config', 'core.bare', cwd=self.upstream_path).stdout.strip() != 'false':
                 self.upstream_path = os.path.join(self.upstream_path, '.git')
         elif ':' in self.upstream:
             self.reflogtype = 'ssh'

@@ -84,7 +84,7 @@ d3.select("#svg").attr("height", bbox.height + 40).attr('width', bbox.width + 40
 </td></td>
 {% endif %}
 {% for item in action.config %}
-{% if item not in ['branches', 'inherit', 'hook', 'requires', 'queue', 'publish', 'env', 'backlog'] %}
+{% if item not in ['branches', 'tags', 'inherit', 'hook', 'requires', 'queue', 'publish', 'env', 'backlog'] %}
 <tr><th>{{ item }}</th><td>{{ action.config[item]|humanize }}</td></tr>
 {% endif %}
 {% endfor %}
