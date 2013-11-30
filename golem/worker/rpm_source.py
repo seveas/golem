@@ -1,4 +1,4 @@
-from golem.worker import Worker, GolemError
+from golem.worker import Worker, GolemError, GolemRetryLater
 import os
 import glob
 import rpm

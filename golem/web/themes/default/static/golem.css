@@ -291,6 +291,12 @@ See the LICENSE file for licensing details
 .golem .scheduled:before, .golem .in-progress:before {
     content: "⧖ ";
 }
+.golem .retry {
+    background-color: rgb(255, 221, 155);
+    padding: 0px 3px 0px 3px;
+    margin-left: 5px;
+    font-weight: bold;
+}
 .golem th {
     text-align: left;
     vertical-align: top;
@@ -323,6 +329,9 @@ rect {
 }
 .golem .scheduled rect {
     fill: rgb(255, 255, 204);
+}
+.golem .retry rect {
+    fill: rgb(255, 221, 185);
 }
 .golem dd {
     padding-left: 2em;
