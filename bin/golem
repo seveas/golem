@@ -240,6 +240,14 @@ else:
                     shell[sys.argv[0]]('--config', config, '--worker', worker, '--daemon', '--instance', instance)
                 else:
                     shell[sys.argv[0]]('--config', config, '--worker', worker, '--daemon')
+        notifiers =  [x[9:] for x in parser.sections() if x.startswith('notifier:')]
+        for num, notifier in enumerate(notifiers):
+            print "Starting notifier %s (%d/%d)"  % (notifier, num+1, len(notifiers))
+            for instance in range(parser.getint('notifier:' + notifier, 'instances')):
+                if instance:
+                    shell[sys.argv[0]]('--config', config, '--notifier', notifier, '--daemon', '--instance', instance)
+                else:
+                    shell[sys.argv[0]]('--config', config, '--notifier', notifier, '--daemon')
 
 if opts['--daemon']:
     daemon.daemonize(pidfile)
