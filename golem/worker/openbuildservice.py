@@ -2,6 +2,7 @@ from golem.worker import Worker
 from golem import GolemError, GolemRetryLater
 import glob
 import os
+from whelk import shell
 
 class Daemon(Worker):
     repo_sync = False
@@ -36,3 +37,7 @@ class Daemon(Worker):
             raise GolemRetryLater("Package checkout in %s unclean, aborting" % job.osc_path)
         self.logger.info("Pulling updates from openbuildservice")
         job.shell.osc('up', cwd=job.osc_path)
+
+    @staticmethod
+    def login():
+        shell.osc('my', 'pkg', redirect=False)
