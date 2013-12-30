@@ -282,13 +282,13 @@ See the LICENSE file for licensing details
 .golem .success:before {
     content: "✔ ";
 }
-.golem .scheduled, .golem .in-progress {
+.golem .scheduled, .golem .in-progress, .golem .started {
     background-color: rgb(255, 255, 204);
     padding: 0px 3px 0px 3px;
     margin-left: 5px;
     font-weight: bold;
 }
-.golem .scheduled:before, .golem .in-progress:before {
+.golem .scheduled:before, .golem .in-progress:before, .golem .started:before {
     content: "⧖ ";
 }
 .golem .retry {

@@ -26,6 +26,7 @@ action = Table('action', metadata,
     Column('start_time', DateTime()),
     Column('end_time', DateTime()),
     Column('duration', Integer),
+    Column('host', String(50)),
     UniqueConstraint('name', 'commit'),
 )
 

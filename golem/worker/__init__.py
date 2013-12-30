@@ -11,6 +11,7 @@ import re
 import shutil
 import time
 import random
+import socket
 from golem import GolemError, GolemRetryLater, OutputLogger, RunLogger, now, toutctimestamp
 
 class Worker(Daemon):
@@ -36,6 +37,11 @@ class Worker(Daemon):
     def process_job(self, job):
         job = Job(self, job)
         self.logger.info("Processing %s job for %s (%s@%s)" % (job.action, job.repo, job.ref, job.sha1))
+        to_submit = {'repo': job.repo, 'ref': job.ref, 'prev_sha1': job.prev_sha1, 'sha1': job.sha1,
+                     'why': 'action-started', 'action': job.action, 'host': socket.gethostname(),
+                     'start_time': toutctimestamp(job.start_time)}
+        self.bs.use(self.submit_queue)
+        self.bs.put(json.dumps(to_submit), ttr=600)
 
         if self.repo_sync:
             job.run_hook('pre-sync')
@@ -183,7 +189,8 @@ class Job(object):
         to_submit = {'repo': self.repo, 'ref': self.ref, 'prev_sha1': self.prev_sha1, 'sha1': self.sha1,
                      'why': 'action-done', 'action': self.action, 'result': self.result,
                      'start_time': toutctimestamp(self.start_time), 'end_time': toutctimestamp(self.end_time),
-                     'duration': (self.end_time-self.start_time).total_seconds()}
+                     'duration': (self.end_time-self.start_time).total_seconds(),
+                     'host': socket.gethostname()}
         self.worker.bs.use(self.worker.submit_queue)
         self.worker.bs.put(json.dumps(to_submit), ttr=600)
 

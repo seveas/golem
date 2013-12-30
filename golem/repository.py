@@ -321,12 +321,19 @@ class Repository(IniConfig):
         if ref and ref.startswith('refs/tags'):
             tags = [(ref, 0)]
 
+        if why == 'action-started':
+            res = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
+                    sql.and_(_r.c.name == job['repo'], _c.c.ref==job['ref'], _c.c.sha1==job['sha1'], _a.c.name==job['action']))).fetchone()
+            aid, cid = res.action_id, res.commit_id
+            db.execute(_a.update().values(status='started', start_time=datetime.datetime.utcfromtimestamp(job['start_time']), host=job['host']))
+
         if why == 'action-done':
             res = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
                     sql.and_(_r.c.name == job['repo'], _c.c.ref==job['ref'], _c.c.sha1==job['sha1'], _a.c.name==job['action']))).fetchone()
             aid, cid = res.action_id, res.commit_id
             db.execute(_a.update().values(status=job['result'], start_time=datetime.datetime.utcfromtimestamp(job['start_time']), 
-                                          end_time=datetime.datetime.utcfromtimestamp(job['end_time']), duration=job['duration']).where(_a.c.id==aid))
+                                          end_time=datetime.datetime.utcfromtimestamp(job['end_time']), duration=job['duration'],
+                                          host=job['host']).where(_a.c.id==aid))
             if job['result'] == 'fail':
                 db.execute(_c.update().values(status=job['result']).where(_c.c.id==cid))
             elif db.execute(sql.select([sql.func.count(_a.c.id)]).where(sql.and_(_a.c.status!='success', _a.c.commit==cid))).scalar() == 0:
