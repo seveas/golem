@@ -18,6 +18,8 @@ class RepoView(TemplateView):
     template_name = 'repo.html'
 
     def dispatch_request(self, repo):
+        if repo not in current_app.config['REPOS']:
+            return "No such repo", 404
         repo = current_app.config['REPOS'][repo]
         return self.render({'repo': repo})
 
@@ -25,16 +27,24 @@ class RunView(TemplateView):
     template_name = 'run.html'
 
     def dispatch_request(self, repo, ref, sha1):
+        if repo not in current_app.config['REPOS']:
+            return "No such repo", 404
         repo = current_app.config['REPOS'][repo]
         commit = repo.commit(ref, sha1, g.db)
+        if not commit:
+            return "No such commit", 404
         actions = repo.actions_for(ref, sha1, g.db)
         actions = [x for x in actions if x['start_time']] + [x for x in actions if not x['start_time']]
         return self.render({'repo': repo, 'commit': commit, 'actions': actions})
 
 class ArtefactView(View):
     def dispatch_request(self, repo, ref, sha1, action, filename):
+        if repo not in current_app.config['REPOS']:
+            return "No such repo", 404
         repo = current_app.config['REPOS'][repo]
         path = os.path.join(repo.path, 'artefacts', action, '%s@%s' % (ref, sha1), filename)
+        if not os.path.exists(path):
+            return "No such file", 404
         mimetype = None
         if filename == 'log':
             mimetype = 'text/plain'
