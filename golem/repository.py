@@ -344,7 +344,12 @@ class Repository(IniConfig):
                     if file != 'log':
                         file = os.path.join(path, file)
                         rfile = file[len(artefact_path)+len(os.sep):]
-                        db.execute(_f.insert().values(action=aid, filename=rfile, sha1=sha1_file(file)))
+                        fsha1 = sha1_file(file)
+                        try:
+                            db.execute(_f.insert().values(action=aid, filename=rfile, sha1=fsha1))
+                        except:
+                            # XXX should reschedule not simply delete things?
+                            db.execute(_f.update().where(sql.and_(_f.c.action==aid, _f.c.filename==rfile)).values(sha1=fsha1))
             for nf in self.notifiers.values():
                 for what in nf.process:
                     if fnmatch.fnmatch('action:' + job['action'], what):
