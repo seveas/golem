@@ -119,17 +119,30 @@ class Master(Daemon):
             return False
         else:
             if job['repo'] not in self.repos:
-                self.logger.warning("Ignoring update for unknown repository %s" % job['repo'])
-            else:
-                repo = self.repos[job['repo']]
-                self.logger.info("Update found for repo %s" % repo.name)
-                db = self.engine.connect()
-                if os.path.getmtime(repo.configfile) > repo.mtime:
-                    self.logger.info("Rereading configuration for %s" % repo.name)
-                    repo = self.repos[job['repo']] = golem.repository.Repository(self, repo.configfile, db)
-                if job['why'] == 'post-receive':
-                    repo.update()
-                repo.schedule(job, db)
-                db.close()
+                # Are there new configfiles?
+                confs = [x.configfile for x in self.repos.values()]
+                for file in os.listdir(self.chems):
+                    if not file.endswith('.conf') or file in confs:
+                        continue
+                repo = golem.repository.Repository(self, os.path.join(self.chems, file), db)
+                self.repos[repo.name] = repo
+                if job['repo'] not in self.repos:
+                    self.logger.warning("Ignoring update for unknown repository %s" % job['repo'])
+                    return True
+            repo = self.repos[job['repo']]
+            if not os.path.exists(repo.configfile):
+                del self.repos[job['repo']]
+                self.logger.warning("Ignoring update for removed repository %s" % job['repo'])
+                return True
+
+            self.logger.info("Update found for repo %s" % repo.name)
+            db = self.engine.connect()
+            if os.path.getmtime(repo.configfile) > repo.mtime:
+                self.logger.info("Rereading configuration for %s" % repo.name)
+                repo = self.repos[job['repo']] = golem.repository.Repository(self, repo.configfile, db)
+            if job['why'] in ('post-receive', 'reschedule'):
+                repo.update()
+            repo.schedule(job, db)
+            db.close()
         os.chdir('/')
         return True
