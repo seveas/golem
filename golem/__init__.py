@@ -1,5 +1,6 @@
 import datetime
 import re
+import os
 
 class GolemError(Exception): pass
 class GolemRetryLater(Exception): pass
@@ -23,6 +24,8 @@ class OutputLogger(object):
             self.data[(sp.pid, fd)] = data
 
 class RunLogger(object):
+    env_blacklist = ['GIT_WORK_TREE', 'GIT_DIR']
+
     def __init__(self, logger):
         self.logger = logger
 
@@ -30,7 +33,7 @@ class RunLogger(object):
         args = [_quote(x) for x in [cmd.name] + list(cmd.args)]
         env = cmd.sp_kwargs.get('env', '')
         if env:
-            env = ['%s=%s' % (x, _quote(env[x])) for x in env]
+            env = ['%s=%s' % (x, _quote(env[x])) for x in env if env[x] != os.environ.get(x, None) and x not in self.env_blacklist]
             env = '%s ' % ' '.join(env)
         self.logger.debug("Running %s%s" % (env, ' '.join(args)))
 
