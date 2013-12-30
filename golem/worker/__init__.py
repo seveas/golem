@@ -67,7 +67,7 @@ class Worker(Daemon):
         os.chdir('/')
         job.run_hook('pre-publish')
         job.publish_results()
-        job.run_hook('pre-publish')
+        job.run_hook('post-publish')
         if job.result == 'success':
             shutil.rmtree(job.work_path)
 
