@@ -327,7 +327,7 @@ rect {
 .golem .success rect {
     fill: rgb(221,255,221);
 }
-.golem .scheduled rect {
+.golem .scheduled rect, .golem .started rect {
     fill: rgb(255, 255, 204);
 }
 .golem .retry rect {
