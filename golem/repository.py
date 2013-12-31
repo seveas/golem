@@ -325,7 +325,8 @@ class Repository(IniConfig):
             res = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
                     sql.and_(_r.c.name == job['repo'], _c.c.ref==job['ref'], _c.c.sha1==job['sha1'], _a.c.name==job['action']))).fetchone()
             aid, cid = res.action_id, res.commit_id
-            db.execute(_a.update().values(status='started', start_time=datetime.datetime.utcfromtimestamp(job['start_time']), host=job['host']))
+            db.execute(_a.update().values(status='started', start_time=datetime.datetime.utcfromtimestamp(job['start_time']),
+                host=job['host']).where(_a.c.id==aid))
 
         if why == 'action-done':
             res = db.execute(_a.join(_c).join(_r).select(use_labels=True).where(
@@ -397,7 +398,8 @@ class Repository(IniConfig):
                             break
             for action in actions:
                 self.actions[action].clean(job['ref'], job['sha1'])
-            db.execute(_a.update().values(status='new').where(sql.and_(_a.c.commit==c.id, _a.c.name.in_(actions))))
+            db.execute(_a.update().values(status='new',host=None, start_time=None, end_time=None,
+                       duration=None).where(sql.and_(_a.c.commit==c.id, _a.c.name.in_(actions))))
 
         tags.sort(key=lambda x: x[1], reverse=True)
 
