@@ -59,8 +59,10 @@ d3.select("#svg").attr("height", bbox.height + 40).attr('width', bbox.width + 40
 <tr><th>Status</th><td>{{ action.status }}</td></tr>
 {% if action.start_time %}
 <tr><th>Start time</th><td>{{ action.start_time }}</td></tr>
+{% if action.end_time %}
 <tr><th>End time</th><td>{{ action.end_time }} ({{ action.duration|humantimediff }})</td></tr>
 <tr><th>Log</th><td><a href="{{ url_for('artefact', repo=repo.name, ref=commit.ref, sha1=commit.sha1, action=action.name, filename='log') }}">download</a></td></tr>
+{% endif %}
 {% endif %}
 {% if action.config['publish'] %}
 <tr><th>Publish</th><td>{{ action.config['publish']|join(', ') }}</td></tr>
