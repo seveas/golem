@@ -172,6 +172,8 @@ class Job(object):
         self.shell.git('clean', '-dxf')
         self.shell.git('reset', '--hard')
         self.shell.git('checkout', sha1)
+        if self.shell.git('submodule').stdout.strip():
+            self.shell.git('submodule', 'update')
 
     def publish_results(self):
         for glb in getattr(self, 'publish', []):

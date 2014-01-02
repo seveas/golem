@@ -222,6 +222,17 @@ class Repository(IniConfig):
                         # For secondary repos, exceptions are ok
                         for line in traceback.format_exc().split('\n'):
                             self.logger.error(line)
+            if self.git('ls-tree', 'HEAD', '.gitmodules').stdout.strip():
+                # This needs a workdir, so have a temporary one
+                wd = self.repo_path + '.work'
+                if not os.path.exists(wd):
+                    os.mkdir(wd)
+                env = {'GIT_DIR': self.repo_path, 'GIT_WORK_TREE': wd}
+                self.git('checkout', 'HEAD', cwd=wd, env=env)
+                self.git('reset', '--hard', 'HEAD', cwd=wd, env=env)
+                self.git('submodule', 'init', cwd=wd, env=env)
+                self.git('submodule', 'update', cwd=wd, env=env)
+                shutil.rmtree(wd)
         self.update_reflog()
 
     def update_reflog(self):
