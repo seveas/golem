@@ -118,6 +118,7 @@ class Master(Daemon):
             self.logger.info("Exiting")
             return False
         else:
+            db = self.engine.connect()
             if job['repo'] not in self.repos:
                 # Are there new configfiles?
                 confs = [x.configfile for x in self.repos.values()]
@@ -136,7 +137,6 @@ class Master(Daemon):
                 return True
 
             self.logger.info("Update found for repo %s" % repo.name)
-            db = self.engine.connect()
             if os.path.getmtime(repo.configfile) > repo.mtime:
                 self.logger.info("Rereading configuration for %s" % repo.name)
                 repo = self.repos[job['repo']] = golem.repository.Repository(self, repo.configfile, db)
