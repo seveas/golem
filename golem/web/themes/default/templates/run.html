@@ -56,6 +56,9 @@ d3.select("#svg").attr("height", bbox.height + 40).attr('width', bbox.width + 40
 <h2>{{ action.name }}</h2>
 <table>
 <tr><th>Queue</th><td>{{ action.config.queue }}</td></tr>
+{% if action.host %}
+<tr><th>Host</th><td>{{ action.host }}</td></tr>
+{% endif %}
 <tr><th>Status</th><td>{{ action.status }}</td></tr>
 {% if action.start_time %}
 <tr><th>Start time</th><td>{{ action.start_time }}</td></tr>
