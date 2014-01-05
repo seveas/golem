@@ -266,6 +266,19 @@ class Repository(IniConfig):
             heads = {}
 
             for event in repo.iter_events(number=300):
+                if event.type == 'CreateEvent' and event.payload['ref_type'] == 'branch':
+                    # log --reverse -n1 does not what I expect: it outputs only the *last*
+                    # commit. I want the first.
+                    sha = self.shell.git('log', '--pretty=%H',  event.payload['ref']).stdout.rsplit('\n', 2)[-2]
+                    push = (
+                        '0' * 40,
+                        sha,
+                        cache(gh.user, event.actor.login).name,
+                        '<%s@github>' % event.actor.login,
+                        event.created_at.strftime('%s +0000'),
+                        'push',
+                    )
+                    branches['refs/heads/' + event.payload['ref']].append(push)
                 if event.type != 'PushEvent':
                     continue
                 # Format:
