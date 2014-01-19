@@ -81,6 +81,7 @@ class Job(object):
         self.publish = []
         self.worker = worker
         self.logger = worker.logger
+        self.json = data.body
 
         data = json.loads(data.body)
         for key, value in data.items():
