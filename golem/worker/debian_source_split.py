@@ -2,6 +2,7 @@ from golem.worker import Worker, GolemError
 import glob
 import os
 import re
+import shutil
 
 class Daemon(Worker):
     repo_checkout = False
@@ -27,6 +28,7 @@ class Daemon(Worker):
                 if isinstance(args, basestring):
                     args = [args]
                 job.shell.debuild(*args, cwd=pkgdir)
+            shutil.rmtree(pkgdir)
 
         for changes in glob.glob('*.changes'):
             if changes in orig_files:
