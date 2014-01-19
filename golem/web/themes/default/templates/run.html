@@ -95,7 +95,7 @@ d3.select("#svg").attr("height", bbox.height + 40).attr('width', bbox.width + 40
 {% endfor %}
 {% if action.files %}
 <tr><th>Files</th><td><ul class="filelist">
-{% for file in action.files %}
+{% for file in sorted(action.files) %}
 <li><a href="{{ url_for('artefact', repo=repo.name, ref=commit.ref, sha1=commit.sha1, action=action.name, filename=file.filename) }}">{{ file.filename }}</a> <span class="filesha1">({{ file.sha1 }})</span></li>
 {% endfor %}
 </ul></td></tr>
