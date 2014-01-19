@@ -83,6 +83,7 @@ class Master(Daemon):
     def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, chems, db, do_update):
         super(Master, self).__init__(logger, bs_host, bs_port, bs_queue)
         # Read repositories
+        self.dummy = False
         self.repos = {}
         self.repo_dir = repo_dir
         self.chems = chems

@@ -141,7 +141,8 @@ class Repository(IniConfig):
                                 changed = True
                                 self.actions[action].tags.remove(tag)
 
-        self.create_dirs()
+        if not daemon.dummy:
+            self.create_dirs()
 
         _r = golem.db.repository
         self.id = db.execute(sql.select([_r.c.id]).where(_r.c.name==self.name)).fetchone()
