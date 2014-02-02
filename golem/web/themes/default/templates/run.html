@@ -29,7 +29,7 @@ renderer.drawNode(function(graph, u, svg) {
 {% if commit.prev_sha1 != '0' * 40 %}
 <tr><th>Shortlog</th><td class="shortlog"><pre>{{ repo.shortlog_html(commit.prev_sha1, commit.sha1)|safe }}</pre></td></tr>
 {% else %}
-<tr><th>Commit message</th><td class="shortlog"><pre>{{ repo.shortlog(commit.sha1 + "^", commit.sha1) }}</pre></td></tr>
+<tr><th>Commit message</th><td class="shortlog"><pre>{{ repo.shortlog_html(commit.sha1 + "^", commit.sha1)|safe }}</pre></td></tr>
 {% endif %}
 </table>
 <svg id="svg">
