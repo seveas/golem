@@ -8,6 +8,7 @@ import requests
 
 class Daemon(Worker):
     repo_checkout = False
+    release_git_lock = False
 
     def process_job_simple(self, job):
         self.logger.info("Uploading package to PyPI")
@@ -15,6 +16,7 @@ class Daemon(Worker):
         files = [('sdist', 'source', files[0])]
 
         job.shell.git('checkout', job.sha1, '--', 'setup.py')
+        self.lockfile.release()
         Command.announce = self._log
         dist = run_setup('setup.py')
         dist.run_command('register')

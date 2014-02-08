@@ -5,6 +5,7 @@ import re
 
 class Daemon(Worker):
     repo_checkout = False
+    release_git_lock = False
 
     def process_job_simple(self, job):
         self.logger.info("Building debian source package(s)")
@@ -18,6 +19,7 @@ class Daemon(Worker):
             job.run_hook('pre-debian-checkout')
             job.shell.git('checkout', job.debian_branch, '--', 'debian')
             job.run_hook('post-debian-checkout')
+            self.lockfile.release()
 
             # Get version from debian dir
             with open('debian/changelog') as fd:
@@ -61,6 +63,7 @@ class Daemon(Worker):
                 job.run_hook('pre-debian-checkout')
                 job.shell.git('checkout', tags[-1], '--', 'debian')
                 job.run_hook('post-debian-checkout')
+                self.lockfile.release()
 
         # Detect the commit on the debian branch
         else:
@@ -102,6 +105,7 @@ class Daemon(Worker):
             job.run_hook('pre-debian-checkout')
             job.shell.git('checkout', good_commit, '--', 'debian')
             job.run_hook('post-debian-checkout')
+            self.lockfile.release()
 
         with open('debian/changelog') as fd:
             version_line = fd.readline()

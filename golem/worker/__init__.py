@@ -17,6 +17,7 @@ from golem import GolemError, GolemRetryLater, OutputLogger, RunLogger, now, tou
 class Worker(Daemon):
     repo_sync = True
     repo_checkout = True
+    release_git_lock = True
 
     def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, submit_queue, rsync_root, rsync_hardlink, rsync_password, do_one, config):
         super(Worker, self).__init__(logger, bs_host, bs_port, bs_queue)
@@ -48,11 +49,14 @@ class Worker(Daemon):
             job.sync()
             job.run_hook('post-sync')
         os.chdir(job.work_path)
+        self.lockfile = lockfile.FileLock(os.path.join(job.repo_path, 'golem.lock'))
+        self.lockfile.acquire()
         if self.repo_checkout:
-            with lockfile.FileLock(os.path.join(job.repo_path, 'golem.lock')):
-                job.run_hook('pre-checkout')
-                job.checkout(job.sha1)
-                job.run_hook('post-checkout')
+            job.run_hook('pre-checkout')
+            job.checkout(job.sha1)
+            job.run_hook('post-checkout')
+        if self.release_git_lock:
+            self.lockfile.release()
 
         try:
             self.setup(job)
