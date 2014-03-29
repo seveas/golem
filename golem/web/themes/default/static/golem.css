@@ -302,6 +302,9 @@ See the LICENSE file for licensing details
     vertical-align: top;
     padding-right: 0.5em;
 }
+svg {
+    overflow: hidden;
+}
 rect {
     fill: #fff;
 }
@@ -312,11 +315,11 @@ rect {
     fill: none;
 }
 
-.edge rect {
+.edgeLabel rect {
     fill: #fff;
 }
 
-.edge path {
+.edgePath {
     fill: none;
     stroke: #333;
     stroke-width: 1.5px;

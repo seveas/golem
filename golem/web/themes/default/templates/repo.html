@@ -7,7 +7,7 @@ See the LICENSE file for licensing details
 {% block title %}{{ repo.name }}{% endblock %}
 {% block extrahead %}
     <script src="http://d3js.org/d3.v3.min.js"></script>
-    <script src="/static/dagre-d3.min.js"></script>
+    <script src="http://cpettitt.github.io/project/dagre-d3/latest/dagre-d3.min.js"></script>
 {% endblock %}
 {% block content %}
 <h1>{{ repo.name }}</h1>
@@ -22,11 +22,11 @@ See the LICENSE file for licensing details
 var dependencies = {{ repo.dependencies()|json }};
 var layout = dagreD3.layout().rankDir("LR");
 var renderer = new dagreD3.Renderer();
-var oldDrawNode = renderer.drawNode();
-renderer.drawNode(function(graph, u, svg) {
-    oldDrawNode(graph, u, svg);
-    svg.attr("id", "node-" + u);
-    svg.attr("class", svg.attr("class") + " " + actionso[u].status);
+var oldDrawNodes = renderer.drawNodes();
+renderer.drawNodes(function(graph, svg) {
+    nodes = oldDrawNodes(graph, svg);
+    nodes.attr("class", function(u) {return "node enter " + actionso[u].status});
+    return nodes;
 });
 </script>
 {% for commit in repo.last_commits(10, g.db) %}
