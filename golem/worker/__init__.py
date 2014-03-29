@@ -51,10 +51,17 @@ class Worker(Daemon):
         os.chdir(job.work_path)
         self.lockfile = lockfile.FileLock(os.path.join(job.repo_path, 'golem.lock'))
         self.lockfile.acquire()
-        if self.repo_checkout:
-            job.run_hook('pre-checkout')
-            job.checkout(job.sha1)
-            job.run_hook('post-checkout')
+        try:
+            if self.repo_checkout:
+                job.run_hook('pre-checkout')
+                job.checkout(job.sha1)
+                job.run_hook('post-checkout')
+        # Don't use finally, because we don't want to release the lock on
+        # success, if told not to
+        except:
+            self.lockfile.release()
+            raise
+
         if self.release_git_lock:
             self.lockfile.release()
 
