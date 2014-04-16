@@ -40,7 +40,7 @@ var actions = {{ actions|json }}
 var actionso = new Array();
 var g = new dagreD3.Digraph();
 actions.forEach(function(action, i) {
-    g.addNode(action.name, {label: action.name});
+    g.addNode(action.name, {label: '<a href="#' + action.name + '">' + action.name + '</a>'});
     actionso[action.name] = action;
 });
 dependencies.forEach(function(dep, i) { 
@@ -53,7 +53,7 @@ var bbox = d3.select("#svg").node().getBBox();
 d3.select("#svg").attr("height", bbox.height + 40).attr('width', bbox.width + 40);
 </script>
 {% for action in actions %}
-<h2>{{ action.name }}</h2>
+<a name="{{ action.name }}"></a><h2>{{ action.name }}</h2>
 <table>
 <tr><th>Queue</th><td>{{ action.config.queue }}</td></tr>
 {% if action.host %}

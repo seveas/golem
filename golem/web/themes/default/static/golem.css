@@ -35,6 +35,14 @@ See the LICENSE file for licensing details
     text-decoration: none;
 }
 
+.golem svg div {
+    padding: 10px;
+}
+
+.golem svg a{
+    color: black;
+}
+
 .golem #content {
     background-color: white;
     border-radius: 10px;
