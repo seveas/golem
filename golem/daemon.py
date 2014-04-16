@@ -126,8 +126,8 @@ class Master(Daemon):
                 for file in os.listdir(self.chems):
                     if not file.endswith('.conf') or file in confs:
                         continue
-                repo = golem.repository.Repository(self, os.path.join(self.chems, file), db)
-                self.repos[repo.name] = repo
+                    repo = golem.repository.Repository(self, os.path.join(self.chems, file), db)
+                    self.repos[repo.name] = repo
                 if job['repo'] not in self.repos:
                     self.logger.warning("Ignoring update for unknown repository %s" % job['repo'])
                     return True
