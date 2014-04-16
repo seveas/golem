@@ -22,4 +22,8 @@ No CI runs yet
 </div>
 </div>
 {% endfor %}
+<script type="text/javascript">
+    var lpos = Array.max($('.status').map(function(index) { return $(this).offset().left; }));
+    $('.status').css({'position': 'absolute', 'left': lpos + 'px'});
+</script>
 {% endblock %}

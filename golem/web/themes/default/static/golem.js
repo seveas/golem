@@ -1,3 +1,4 @@
+Array.max = function( array ){ return Math.max.apply( Math, array ); };
 function toggle_longlog() {
     $(this).parent().children('pre').toggleClass('invisible');
 }
