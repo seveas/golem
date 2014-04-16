@@ -2,8 +2,6 @@ from golem.worker import Worker
 from golem.repository import github
 import os
 
-empty_file_hash = 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391'
-
 class Daemon(Worker):
     repo_sync = False
 
@@ -24,7 +22,6 @@ class Daemon(Worker):
         gh = github()
         repo = gh.repository(*job.github_repo.split('/'))
         branch = repo.ref('heads/gh-pages')
-        parent = repo.commit(branch.object.sha)
 
         files = os.listdir('.')
         if len(files) == 1 and os.path.isdir(files[0]):
@@ -38,13 +35,21 @@ class Daemon(Worker):
             for file in files:
                 with open(os.path.join(dir, file)) as fd:
                     sha = repo.create_blob(fd.read().encode('base64'), "base64")
-                blobs.append({'path': os.path.join(dir, file), 'mode': '100644', 'type': 'blob', 'sha': sha or empty_file_hash})
+                blobs.append({'path': os.path.join(dir, file), 'mode': '100644', 'type': 'blob', 'sha': sha})
         tree = repo.create_tree(blobs)
-        if tree.sha != parent.commit.tree.sha:
-            self.logger.info("Creating new commit")
+        if not branch:
+            self.logger.info("Creating gh-pages branch")
             commit = repo.create_commit("Automatic update from commit %s" % job.sha1,
-                tree=tree.sha, parents=[parent.sha],
+                tree=tree.sha, parents=[],
                 author={'name': 'Golem', 'email': 'golem@seveas.net'})
-            branch.update(commit.sha)
+            repo.create_ref('refs/heads/gh-pages', commit.sha)
         else:
-            self.logger.info("No change, not creating commit")
+            parent = repo.commit(branch.object.sha)
+            if tree.sha != parent.commit.tree.sha:
+                self.logger.info("Creating new commit")
+                commit = repo.create_commit("Automatic update from commit %s" % job.sha1,
+                    tree=tree.sha, parents=[parent.sha],
+                    author={'name': 'Golem', 'email': 'golem@seveas.net'})
+                branch.update(commit.sha)
+            else:
+                self.logger.info("No change, not creating commit")
