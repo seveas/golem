@@ -41,9 +41,26 @@ def inject_functions():
         'isorted': lambda x: sorted(x, key=lambda y: y.lower()),
     }
 
+class Master(object):
+    dummy = True
+master = Master()
+
+@app.before_first_request
+def before_first_reques():
+    master.repo_dir = app.config['REPODIR']
+    app.config['REPOS'] = {}
+
 @app.before_request
 def before_request():
     g.db = app.config['DB'].connect()
+
+    if app.config.get('MTIME',-1) < os.path.getmtime(app.config['CHEMS']):
+        app.config['MTIME'] = os.path.getmtime(app.config['CHEMS'])
+        for file in os.listdir(app.config['CHEMS']):
+            if not file.endswith('.conf'):
+                continue
+            repo = golem.repository.Repository(master, os.path.join(app.config['CHEMS'], file), g.db)
+            app.config['REPOS'][repo.name] = repo
 
 @app.teardown_request
 def teardown_request(exception):
