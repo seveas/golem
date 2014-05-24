@@ -180,7 +180,8 @@ class Repository(IniConfig):
         data = db.execute(_a.select().where(_a.c.commit==cid).order_by(sql.asc(_a.c.start_time))).fetchall()
         data = [{'name': x.name, 'status': x.status, 'start_time': x.start_time, 'end_time': x.end_time, 'host': x.host,
             'duration': x.duration, 'config': self.actions[x.name].config,
-            'files':[{'filename': y.filename, 'sha1': y.sha1} for y in db.execute(_f.select().where(_f.c.action==x.id)).fetchall()]} for x in data]
+            'files':[{'filename': y.filename, 'sha1': y.sha1} for y in db.execute(_f.select().where(_f.c.action==x.id)).fetchall()]} 
+            for x in data if x.name in self.actions]
         return data
 
     def create_dirs(self):
