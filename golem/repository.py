@@ -270,12 +270,13 @@ class Repository(IniConfig):
                 if event.type == 'CreateEvent' and event.payload['ref_type'] == 'branch':
                     # log --reverse -n1 does not what I expect: it outputs only the *last*
                     # commit. I want the first.
-                    print event.payload['ref']
-                    ret = self.shell.git('log', '--pretty=%H',  event.payload['ref'])
+                    ret = self.shell.git('log', '--pretty=%H',  '%s..%s' % (event.payload['master_branch'], event.payload['ref']), '--')
                     if ret.returncode != 0:
                         # Branch no longer exists, so we don't care
                         continue
-                    sha = ret.stdout.rsplit('\n', 2)[-2]
+                    if not ret.stdout.strip():
+                        ret = self.shell.git('rev-parse', event.payload['ref'])
+                    sha = ret.stdout.rsplit('\n', 2)[-1]
                     push = (
                         '0' * 40,
                         sha,
