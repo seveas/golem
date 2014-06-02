@@ -2,7 +2,6 @@ from golem.daemon import Daemon
 from collections import defaultdict
 import keyword
 import whelk
-import lockfile
 import os
 import glob
 import json
@@ -48,22 +47,14 @@ class Worker(Daemon):
             job.run_hook('pre-sync')
             job.sync()
             job.run_hook('post-sync')
-        os.chdir(job.work_path)
-        self.lockfile = lockfile.FileLock(os.path.join(job.repo_path, 'golem.lock'))
-        self.lockfile.acquire()
-        try:
-            if self.repo_checkout:
-                job.run_hook('pre-checkout')
-                job.checkout(job.sha1)
-                job.run_hook('post-checkout')
-        # Don't use finally, because we don't want to release the lock on
-        # success, if told not to
-        except:
-            self.lockfile.release()
-            raise
 
-        if self.release_git_lock:
-            self.lockfile.release()
+        os.chdir(job.work_path)
+
+        job.create_git_dir()
+        if self.repo_checkout:
+            job.run_hook('pre-checkout')
+            job.checkout(job.sha1)
+            job.run_hook('post-checkout')
 
         try:
             self.setup(job)
@@ -105,8 +96,6 @@ class Job(object):
         self.repo_path = os.path.join(worker.repo_dir, self.repo, self.repo + '.git')
         self.work_path = os.path.join(worker.repo_dir, self.repo, 'work', self.action, '%s@%s' % (self.ref, self.sha1))
         self.artefact_path = os.path.join(worker.repo_dir, self.repo, 'artefacts', self.action, '%s@%s' % (self.ref, self.sha1))
-        self.env['GIT_DIR'] = self.repo_path
-        self.env['GIT_WORK_TREE'] = self.work_path
 
         if self.worker.repo_sync and not os.path.exists(self.repo_path):
             os.makedirs(self.repo_path)
@@ -179,6 +168,24 @@ class Job(object):
                     kwargs['stdout'] = open(os.path.join(self.work_path, args[-1]), 'w')
                     args = args[:-2]
                 self.shell[command](*args, **kwargs)
+
+    def create_git_dir(self):
+        # Symlink several things from the .git tree
+        dotgit = os.path.join(self.work_path, '.git')
+        if not os.path.exists(dotgit):
+            os.mkdir(dotgit)
+            os.mkdir(os.path.join(dotgit, 'logs'))
+        for file in ('refs', 'logs/refs', 'objects', 'info', 'hooks',
+            'packed-refs', 'remotes', 'rr-cache', 'svn'):
+            if not os.path.exists(os.path.join(dotgit, file)) and os.path.exists(os.path.join(self.repo_path, file)):
+                os.symlink(os.path.join(self.repo_path, file),
+                           os.path.join(dotgit, file))
+        with open(os.path.join(self.repo_path, 'config')) as infd:
+            with open(os.path.join(dotgit, 'config'), 'w') as outfd:
+                outfd.write(infd.read())
+        with open(os.path.join(dotgit, 'HEAD'), 'w') as fd:
+            fd.write(self.sha1)
+        self.shell.git('config', 'core.bare', 'false')
 
     def checkout(self, sha1):
         self.shell.git('clean', '-dxf')

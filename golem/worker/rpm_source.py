@@ -5,7 +5,6 @@ import rpm
 
 class Daemon(Worker):
     repo_checkout = False
-    release_git_lock = False
 
     def process_job_simple(self, job):
         self.logger.info("Building source rpm")
@@ -98,4 +97,3 @@ class Daemon(Worker):
                 if source[0].startswith(('http://', 'https://')):
                     job.shell.wget(source[0])
         job.run_hook('post-source-download')
-        self.lockfile.release()
