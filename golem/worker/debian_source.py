@@ -71,7 +71,7 @@ class Daemon(Worker):
             # - If this is the first commit on the debian branch, and has only one parent: it's the start of the debian branch
             # - Walk forward in history until encountering another merge with master (one parent has no debian dir), we want the one just before that
             commits = job.shell.git('rev-list', '--parents', '--ancestry-path', 
-                                    '--first-parent', '%s..%s' % (job.sha1, job.debian_branch))
+                                    '--first-parent', '%s..%s' % (job.sha1, job.debian_branch), '--')
             commits = [x.split() for x in commits.stdout.splitlines()]
             commits.reverse() # Let's walk forward in time
             if not commits:
