@@ -25,23 +25,26 @@ import fcntl
 usage = """Golem queueing daemon
 
 Usage:
-  golem [--config=<config>] --master [--daemon] [--instance=<instance>] [--update-on-startup]
-  golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>] [--one]
+  golem [--config=<config>] --master [--daemon] [--instance=<instance>] [--update-on-startup] [--kill]
+  golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>] [--one] [--kill]
   golem [--config=<config>] --notifier=<worker> [--daemon] [--instance=<instance>] [--one]
   golem [--config=<config>] --submit [<repo> [<ref> <prev-sha1> <sha1>]]
   golem [--config=<config>] --reschedule <repo> <ref> [<sha1> [<action>]]
   golem [--config=<config>] --login=<service>
+  golem [--config=<config>] --killall
 
 Options:
   -h --help                 Show this help message and exit
   -c=<file> --config=<file> Use a different configuration than the default
   --daemon                  Run as a daemon in the background
-  --master                  Run the scheduler. When running instance 1, start the helpers too
+  --master                  Run the scheduler. When running instance 1, start the workers too
   --worker=<worker>         Run the specified worker instead of the master
   --notifier=<worker>       Run the specified notifier instead of the master
   --instance=<instance>     Start a numbered instance of worker/master
   --update-on-startup       Do a git fetch of all repositories on startup
   --one                     Process one update and exit
+  --kill                    Kill the already running daemon
+  --killall                 Kill all running golem daemons
 """
 
 defaults = {
@@ -83,6 +86,16 @@ if opts['--login']:
             print >>sys.stderr, "%s does not support logging in" % svc
             sys.exit(1)
         mod.Daemon.login()
+    sys.exit(0)
+
+if opts['--killall']:
+    piddir = os.path.join(parser.get('golem', 'piddir'))
+    for file in os.listdir(piddir):
+        try:
+            print "Processing: %s" % file
+            golem.daemon.killpid(os.path.join(piddir, file))
+        except SystemExit:
+            pass
     sys.exit(0)
 
 bs_host, bs_port = parser.get('golem', 'beanstalk_server').split(':')
@@ -163,6 +176,8 @@ if opts['--worker']:
 
     pidfile = os.path.join(parser.get('golem', 'piddir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.pid')
     lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
+    if opts['--kill']:
+        golem.daemon.killpid(pidfile, '--worker', name)
     if not os.path.exists(os.path.dirname(lockfile)):
         os.makedirs(os.path.dirname(lockfile))
     lockfd = open(lockfile, 'a+')
@@ -195,6 +210,8 @@ elif opts['--notifier']:
 
     pidfile = os.path.join(parser.get('golem', 'piddir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.pid')
     lockfile = os.path.join(parser.get('golem', 'lockdir'), name + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
+    if opts['--kill']:
+        golem.daemon.killpid(pidfile, '--notifier', name)
     if not os.path.exists(os.path.dirname(lockfile)):
         os.makedirs(os.path.dirname(lockfile))
     lockfd = open(lockfile, 'a+')
@@ -219,6 +236,8 @@ else:
 
     pidfile = os.path.join(parser.get('golem', 'piddir'), 'golem' + (opts['--instance'] and '-' + opts['--instance'] or '') + '.pid')
     lockfile = os.path.join(parser.get('golem', 'lockdir'), 'golem' + (opts['--instance'] and '-' + opts['--instance'] or '') + '.lock')
+    if opts['--kill']:
+        golem.daemon.killpid(pidfile, '--master')
     if not os.path.exists(os.path.dirname(lockfile)):
         os.makedirs(os.path.dirname(lockfile))
     lockfd = open(lockfile, 'a+')

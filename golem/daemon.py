@@ -1,7 +1,9 @@
+import atexit
 import beanstalkc
 import json
 import logging
 import os
+import signal
 import sys
 import traceback
 import golem.repository
@@ -9,12 +11,15 @@ import golem.db
 
 class Daemon(object):
     def __init__(self, logger, bs_host, bs_port, bs_queue):
+        self.pidfile = None
         self.logger = logging.getLogger(logger)
 
         # Set up a beanstalk connection
         self.bs_host, self.bs_port = bs_host, bs_port
         self.bs_queue = bs_queue
         self.connect()
+        atexit.register(self.cleanup)
+        signal.signal(signal.SIGTERM, self.cleanup)
 
     def connect(self):
         self.bs = beanstalkc.Connection(host=self.bs_host, port=self.bs_port)
@@ -53,7 +58,7 @@ class Daemon(object):
         # First fork
         try:
             if os.fork() > 0:
-                sys.exit(0)     # kill off parent
+                os._exit(0)     # kill off parent
         except OSError, e:
             sys.stderr.write("fork #1 failed: (%d) %s\n" % (e.errno, e.strerror))
             sys.exit(1)
@@ -69,6 +74,7 @@ class Daemon(object):
             sys.stderr.write("fork #2 failed: (%d) %s\n" % (e.errno, e.strerror))
             os._exit(1)
 
+        self.pidfile = pidfile
         with open(pidfile, 'w') as fd:
             fd.write('%s\n' % os.getpid())
         si = open('/dev/null', 'r')
@@ -78,6 +84,19 @@ class Daemon(object):
         os.dup2(so.fileno(), sys.stdout.fileno())
         os.dup2(se.fileno(), sys.stderr.fileno())
         sys.stdout, sys.stderr = so, se
+
+    def cleanup(self, signum=None, frame=None):
+        signames = dict((k, v) for v, k in signal.__dict__.iteritems() if v.startswith('SIG') and not v.startswith('SIG_'))
+        if self.pidfile:
+            try:
+                os.unlink(self.pidfile)
+            except:
+                pass
+        if signum:
+            self.logger.info("Exiting due to signal %d (%s)" % (signum, signames[signum]))
+        else:
+            self.logger.info("Exiting due to normal process exit")
+
 
 class Master(Daemon):
     def __init__(self, logger, bs_host, bs_port, bs_queue, repo_dir, chems, db, do_update):
@@ -147,3 +166,20 @@ class Master(Daemon):
             db.close()
         os.chdir('/')
         return True
+
+def killpid(pidfile, *matches):
+    with open(pidfile) as fd:
+        pid = int(fd.read())
+    if os.path.exists('/proc'):
+        # We have proc, so we can be careful
+        fn = '/proc/%d/cmdline' % pid
+        if os.path.exists(fn):
+            with open(fn) as fd:
+                cmd = fd.read()
+            for match in matches:
+                if match not in cmd:
+                    raise RuntimeError("Stale pidfile, reused pid")
+        else:
+            sys.exit(0)
+    os.kill(pid, signal.SIGTERM)
+    sys.exit(0)
