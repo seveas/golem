@@ -50,8 +50,8 @@ class Worker(Daemon):
 
         os.chdir(job.work_path)
 
-        job.create_git_dir()
         if self.repo_checkout:
+            job.create_git_dir()
             job.run_hook('pre-checkout')
             job.checkout(job.sha1)
             job.run_hook('post-checkout')
