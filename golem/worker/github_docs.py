@@ -49,7 +49,8 @@ class Daemon(Worker):
                 self.logger.info("Creating new commit")
                 commit = repo.create_commit("Automatic update from commit %s" % job.sha1,
                     tree=tree.sha, parents=[parent.sha],
-                    author={'name': 'Golem', 'email': 'golem@seveas.net'})
+                    author={'name': 'Golem', 'email': 'golem@seveas.net'},
+                    committer={'name': 'Golem', 'email': 'golem@seveas.net'})
                 branch.update(commit.sha)
             else:
                 self.logger.info("No change, not creating commit")
