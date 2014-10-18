@@ -51,7 +51,6 @@ class Worker(Daemon):
         os.chdir(job.work_path)
 
         if self.repo_checkout:
-            job.create_git_dir()
             job.run_hook('pre-checkout')
             job.checkout(job.sha1)
             job.run_hook('post-checkout')
@@ -188,9 +187,15 @@ class Job(object):
         self.shell.git('config', 'core.bare', 'false')
 
     def checkout(self, sha1):
-        self.shell.git('clean', '-dxf')
-        self.shell.git('reset', '--hard')
-        self.shell.git('checkout', sha1)
+        supports_multiple_checkouts = '--to' in self.shell.man('git-checkout', output_callback=None).stdout
+        if supports_multiple_checkouts:
+            os.rmdir(self.work_path)
+            self.shell.git('checkout', '--to', self.work_path, sha1, cwd=self.repo_path)
+        else:
+            job.create_git_dir()
+            self.shell.git('clean', '-dxf')
+            self.shell.git('reset', '--hard')
+            self.shell.git('checkout', sha1)
         if self.shell.git('submodule').stdout.strip():
             self.shell.git('submodule', 'update')
 
