@@ -40,7 +40,9 @@ var actions = {{ actions|json }}
 var actionso = new Array();
 var g = new dagreD3.Digraph();
 actions.forEach(function(action, i) {
-    g.addNode(action.name, {label: '<a href="#' + action.name + '">' + action.name + '</a>'});
+    var sp = document.createElement('span')
+    sp.innerHTML = '<a href="#' + action.name + '">' + action.name + '</a>';
+    g.addNode(action.name, {label: sp});
     actionso[action.name] = action;
 });
 dependencies.forEach(function(dep, i) { 
