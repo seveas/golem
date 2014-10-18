@@ -96,6 +96,9 @@ class Job(object):
         self.work_path = os.path.join(worker.repo_dir, self.repo, 'work', self.action, '%s@%s' % (self.ref, self.sha1))
         self.artefact_path = os.path.join(worker.repo_dir, self.repo, 'artefacts', self.action, '%s@%s' % (self.ref, self.sha1))
 
+        if not worker.repo_checkout:
+            self.env.update({'GIT_DIR': self.repo_path, 'GIT_WORK_TREE': self.work_path})
+
         if self.worker.repo_sync and not os.path.exists(self.repo_path):
             os.makedirs(self.repo_path)
         if os.path.exists(self.work_path):
