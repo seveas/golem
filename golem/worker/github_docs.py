@@ -16,9 +16,6 @@ class Daemon(Worker):
             else:
                 os.unlink(f)
 
-        if getattr(job, 'nojekyll', 'no').lower() in ('true', 'yes', 'y', '1'):
-            open('.nojekyll','w').close()
-
         gh = github()
         repo = gh.repository(*job.github_repo.split('/'))
         branch = repo.ref('heads/gh-pages')
@@ -28,6 +25,9 @@ class Daemon(Worker):
             os.chdir(files[0])
             job.shell.defaults['cwd'] = os.path.join(job.work_path, files[0])
             job.pipe.defaults['cwd'] = job.shell.defauls['cwd']
+
+        if getattr(job, 'nojekyll', 'no').lower() in ('true', 'yes', 'y', '1'):
+            open('.nojekyll','w').close()
 
         blobs = []
         for (dir, _, files) in os.walk('.'):
