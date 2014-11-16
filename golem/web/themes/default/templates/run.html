@@ -13,14 +13,6 @@ See the LICENSE file for licensing details
 <h1>{{ repo.name }}</h1>
 <script type="text/javascript">
 var dependencies = {{ repo.dependencies()|json }};
-var layout = dagreD3.layout().rankDir("LR");
-var renderer = new dagreD3.Renderer();
-var oldDrawNodes = renderer.drawNodes();
-renderer.drawNodes(function(graph, svg) {
-    nodes = oldDrawNodes(graph, svg);
-    nodes.attr("class", function(u) {return "node enter " + actionso[u].status});
-    return nodes;
-});
 </script>
 <h2>{{ commit.ref }} @ {{ commit.sha1[:7] }}</h2>
 <table>
@@ -33,26 +25,38 @@ renderer.drawNodes(function(graph, svg) {
 {% endif %}
 </table>
 <svg id="svg">
-    <g transform="translate(20,20)" />
+    <g />
 </svg>
 <script type="text/javascript">
 var actions = {{ actions|json }}
-var actionso = new Array();
-var g = new dagreD3.Digraph();
+var depmap = {}
+var g = new dagreD3.graphlib.Graph()
+    .setGraph({
+        rankdir: "LR",
+        marginx: 20,
+        marginy: 20,
+    })
+    .setDefaultEdgeLabel(function() { return {}; });
 actions.forEach(function(action, i) {
     var sp = document.createElement('span')
     sp.innerHTML = '<a href="#' + action.name + '">' + action.name + '</a>';
-    g.addNode(action.name, {label: sp});
-    actionso[action.name] = action;
+    g.setNode(i, {label: sp, class: action.status});
+    depmap[action.name] = i;
+});
+g.nodes().forEach(function(v) {
+    var node = g.node(v);
+    node.rx = node.ry = 5;
 });
 dependencies.forEach(function(dep, i) { 
-    try {
-        g.addEdge(null, dep[1], dep[0]); }
-    catch (e) { }
+    if(dep[0] in depmap && dep[1] in depmap) {
+        g.setEdge(depmap[dep[1]], depmap[dep[0]], {
+           arrowheadStyle: "fill: #000",
+        }); 
+    }
 });
-renderer.layout(layout).run(g, d3.select("#svg g"))
-var bbox = d3.select("#svg").node().getBBox();
-d3.select("#svg").attr("height", bbox.height + 40).attr('width', bbox.width + 40);
+var render = new dagreD3.render();
+render(d3.select("#svg g"), g);
+d3.select("#svg").attr("height", g.graph().height).attr('width', g.graph().width);
 </script>
 {% for action in actions %}
 <a name="{{ action.name }}"></a><h2>{{ action.name }}</h2>
