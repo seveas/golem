@@ -53,6 +53,7 @@ class Worker(Daemon):
         if self.repo_checkout:
             job.run_hook('pre-checkout')
             job.checkout(job.sha1)
+            os.chdir(job.work_path)
             job.run_hook('post-checkout')
 
         try:
