@@ -25,11 +25,11 @@ import fcntl
 usage = """Golem queueing daemon
 
 Usage:
-  golem [--config=<config>] --master [--daemon] [--instance=<instance>] [--update-on-startup] [--kill]
+  golem [--config=<config>] [--quiet] --master [--daemon] [--instance=<instance>] [--update-on-startup] [--kill]
   golem [--config=<config>] --worker=<worker> [--daemon] [--instance=<instance>] [--one] [--kill]
   golem [--config=<config>] --notifier=<worker> [--daemon] [--instance=<instance>] [--one]
-  golem [--config=<config>] --submit [<repo> [<ref> <prev-sha1> <sha1>]]
-  golem [--config=<config>] --reschedule <repo> <ref> [<sha1> [<action>]]
+  golem [--config=<config>] [--quiet] --submit [<repo> [<ref> <prev-sha1> <sha1>]]
+  golem [--config=<config>] [--quiet] --reschedule <repo> <ref> [<sha1> [<action>]]
   golem [--config=<config>] --login=<service>
   golem [--config=<config>] --killall
 
@@ -125,7 +125,8 @@ if opts['--submit']:
     bs.use(bs_queue)
     for thing in to_submit:
         bs.put(json.dumps(thing), ttr=600)
-        print "Notified golem of the update to %s" % thing['repo']
+        if not opts['--quiet']:
+            print "Notified golem of the update to %s" % thing['repo']
     sys.exit(0)
 
 if opts['--reschedule']:
@@ -133,7 +134,8 @@ if opts['--reschedule']:
     bs.use(bs_queue)
     thing = {'repo': opts['<repo>'], 'ref': opts['<ref>'], 'sha1': opts['<sha1>'], 'action': opts['<action>'], 'why': 'reschedule'}
     bs.put(json.dumps(thing), ttr=600)
-    print "Queued the reschedule"
+    if not opts['--quiet']:
+        print "Queued the reschedule"
     sys.exit(0)
 
 # Now we start daemons
@@ -253,7 +255,8 @@ else:
         # Start the workers
         workers =  [x[7:] for x in parser.sections() if x.startswith('worker:')]
         for num, worker in enumerate(workers):
-            print "Starting worker %s (%d/%d)"  % (worker, num+1, len(workers))
+            if not opts['--quiet']:
+                print "Starting worker %s (%d/%d)"  % (worker, num+1, len(workers))
             for instance in range(parser.getint('worker:' + worker, 'instances')):
                 if instance:
                     shell[sys.argv[0]]('--config', config, '--worker', worker, '--daemon', '--instance', instance)
@@ -261,7 +264,8 @@ else:
                     shell[sys.argv[0]]('--config', config, '--worker', worker, '--daemon')
         notifiers =  [x[9:] for x in parser.sections() if x.startswith('notifier:')]
         for num, notifier in enumerate(notifiers):
-            print "Starting notifier %s (%d/%d)"  % (notifier, num+1, len(notifiers))
+            if not opts['--quiet']:
+                print "Starting notifier %s (%d/%d)"  % (notifier, num+1, len(notifiers))
             for instance in range(parser.getint('notifier:' + notifier, 'instances')):
                 if instance:
                     shell[sys.argv[0]]('--config', config, '--notifier', notifier, '--daemon', '--instance', instance)
