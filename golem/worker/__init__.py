@@ -171,34 +171,9 @@ class Job(object):
                     args = args[:-2]
                 self.shell[command](*args, **kwargs)
 
-    def create_git_dir(self):
-        # Symlink several things from the .git tree
-        dotgit = os.path.join(self.work_path, '.git')
-        if not os.path.exists(dotgit):
-            os.mkdir(dotgit)
-            os.mkdir(os.path.join(dotgit, 'logs'))
-        for file in ('refs', 'logs/refs', 'objects', 'info', 'hooks',
-            'packed-refs', 'remotes', 'rr-cache', 'svn'):
-            if not os.path.exists(os.path.join(dotgit, file)) and os.path.exists(os.path.join(self.repo_path, file)):
-                os.symlink(os.path.join(self.repo_path, file),
-                           os.path.join(dotgit, file))
-        with open(os.path.join(self.repo_path, 'config')) as infd:
-            with open(os.path.join(dotgit, 'config'), 'w') as outfd:
-                outfd.write(infd.read())
-        with open(os.path.join(dotgit, 'HEAD'), 'w') as fd:
-            fd.write(self.sha1)
-        self.shell.git('config', 'core.bare', 'false')
-
     def checkout(self, sha1):
-        supports_multiple_checkouts = '--to' in self.shell.man('git-checkout', output_callback=None).stdout
-        if supports_multiple_checkouts:
-            os.rmdir(self.work_path)
-            self.shell.git('checkout', '--to', self.work_path, sha1, cwd=self.repo_path)
-        else:
-            job.create_git_dir()
-            self.shell.git('clean', '-dxf')
-            self.shell.git('reset', '--hard')
-            self.shell.git('checkout', sha1)
+        self.shell.git('worktree', 'prune', cwd=self.repo_path)
+        self.shell.git('worktree', 'add', self.work_path, sha1, cwd=self.repo_path)
         if self.shell.git('submodule').stdout.strip():
             self.shell.git('submodule', 'update')
 
