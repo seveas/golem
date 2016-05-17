@@ -11,8 +11,10 @@ class Daemon(Worker):
         for f in files:
             if f.endswith('.zip'):
                 job.shell.unzip('-o', f)
+                os.unlink(f)
             elif f.endswith(('.tar.gz', 'tar.bz2')):
                 job.shell.tar('-xf', f)
+                os.unlink(f)
             else:
                 os.unlink(f)
 
