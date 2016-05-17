@@ -43,7 +43,8 @@ class Daemon(Worker):
             self.logger.info("Creating gh-pages branch")
             commit = repo.create_commit("Automatic update from commit %s" % job.sha1,
                 tree=tree.sha, parents=[],
-                author={'name': 'Golem', 'email': 'golem@seveas.net'})
+                author={'name': 'Golem', 'email': 'golem@seveas.net'},
+                committer={'name': 'Golem', 'email': 'golem@seveas.net'})
             repo.create_ref('refs/heads/gh-pages', commit.sha)
         else:
             parent = repo.commit(branch.object.sha)
