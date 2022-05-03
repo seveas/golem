@@ -1,18 +1,22 @@
 from flask.views import View
 from flask import render_template, current_app, redirect, url_for, request, send_file, g
+from werkzeug.utils import safe_join
 import os
 import beanstalkc
 import json
 
+
 class TemplateView(View):
     def render(self, context):
         return render_template(self.template_name, **context)
+
 
 class IndexView(TemplateView):
     template_name = 'index.html'
 
     def dispatch_request(self):
         return self.render({'repos': current_app.config['REPOS']})
+
 
 class RepoView(TemplateView):
     template_name = 'repo.html'
@@ -22,6 +26,7 @@ class RepoView(TemplateView):
             return "No such repo", 404
         repo = current_app.config['REPOS'][repo]
         return self.render({'repo': repo})
+
 
 class RunView(TemplateView):
     template_name = 'run.html'
@@ -34,15 +39,18 @@ class RunView(TemplateView):
         if not commit:
             return "No such commit", 404
         actions = repo.actions_for(ref, sha1, g.db)
-        actions = [x for x in actions if x['start_time']] + [x for x in actions if not x['start_time']]
+        actions = [x for x in actions if x['start_time']] + \
+            [x for x in actions if not x['start_time']]
         return self.render({'repo': repo, 'commit': commit, 'actions': actions})
+
 
 class ArtefactView(View):
     def dispatch_request(self, repo, ref, sha1, action, filename):
         if repo not in current_app.config['REPOS']:
             return "No such repo", 404
         repo = current_app.config['REPOS'][repo]
-        path = os.path.join(repo.path, 'artefacts', action, '%s@%s' % (ref, sha1), filename)
+        path = safe_join(repo.path, 'artefacts', action,
+                         '%s@%s' % (ref, sha1), filename)
         if not os.path.exists(path):
             return "No such file", 404
         mimetype = None
@@ -50,13 +58,15 @@ class ArtefactView(View):
             mimetype = 'text/plain'
         return send_file(path, attachment_filename=os.path.basename(filename), as_attachment=False, mimetype=mimetype)
 
+
 class QueueView(TemplateView):
     template_name = 'queues.html'
 
     def dispatch_request(self):
         host, port = current_app.config['BEANSTALK_SERVER'].split(':')
         bs = beanstalkc.Connection(host, int(port))
-        queues = dict([(x, {'name': x, 'jobs': [], 'stats': None}) for x in bs.tubes() if x.startswith('golem-')])
+        queues = dict([(x, {'name': x, 'jobs': [], 'stats': None})
+                      for x in bs.tubes() if x.startswith('golem-')])
         for queue in queues:
             bs.watch(queue)
             bs.use(queue)
